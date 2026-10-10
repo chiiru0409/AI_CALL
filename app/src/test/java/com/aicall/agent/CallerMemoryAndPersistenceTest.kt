@@ -3,6 +3,7 @@ package com.aicall.agent
 import com.aicall.agent.ai.conversation.RuleBasedReasoningEngine
 import com.aicall.agent.data.db.MIGRATION_1_2
 import com.aicall.agent.data.db.MIGRATION_2_3
+import com.aicall.agent.data.db.MIGRATION_1_3
 import com.aicall.agent.data.model.*
 import com.aicall.agent.data.util.PhoneNumberUtils
 import kotlinx.coroutines.runBlocking
@@ -290,6 +291,33 @@ class CallerMemoryAndPersistenceTest {
 
         assertEquals(2, MIGRATION_2_3.startVersion)
         assertEquals(3, MIGRATION_2_3.endVersion)
+
+        assertEquals(1, MIGRATION_1_3.startVersion)
+        assertEquals(3, MIGRATION_1_3.endVersion)
+    }
+
+    @Test
+    fun testMigrationExecutionSafety() {
+        val executedSql = mutableListOf<String>()
+        val mockDb = java.lang.reflect.Proxy.newProxyInstance(
+            androidx.sqlite.db.SupportSQLiteDatabase::class.java.classLoader,
+            arrayOf(androidx.sqlite.db.SupportSQLiteDatabase::class.java)
+        ) { _, method, args ->
+            if (method.name == "execSQL" && args != null && args.isNotEmpty()) {
+                executedSql.add(args[0] as String)
+            }
+            null
+        } as androidx.sqlite.db.SupportSQLiteDatabase
+
+        // Execute migrations
+        MIGRATION_1_2.migrate(mockDb)
+        MIGRATION_2_3.migrate(mockDb)
+        MIGRATION_1_3.migrate(mockDb)
+
+        assertTrue(executedSql.any { it.contains("ALTER TABLE `caller_profiles` ADD COLUMN `unresolvedRequests`") })
+        assertTrue(executedSql.any { it.contains("ALTER TABLE `caller_profiles` ADD COLUMN `preferences`") })
+        assertTrue(executedSql.any { it.contains("ALTER TABLE `call_records` ADD COLUMN `processingError`") })
+        assertTrue(executedSql.any { it.contains("ALTER TABLE `action_items` ADD COLUMN `priority`") })
     }
 
     @Test

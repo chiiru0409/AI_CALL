@@ -157,8 +157,53 @@ interface AuditLogDao {
     suspend fun insertLog(log: AuditLog)
 }
 
+private fun safeAddColumn(db: SupportSQLiteDatabase, table: String, column: String, columnDef: String) {
+    try {
+        db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $columnDef")
+    } catch (e: Exception) {
+        // Column may already exist
+    }
+}
+
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `action_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `callSessionId` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `priority` TEXT NOT NULL, `dueDate` INTEGER, `isCompleted` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_action_items_callSessionId` ON `action_items` (`callSessionId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_action_items_isCompleted` ON `action_items` (`isCompleted`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_action_items_createdAt` ON `action_items` (`createdAt`)")
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS `audit_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `eventType` TEXT NOT NULL, `callSessionId` TEXT, `description` TEXT NOT NULL, `severity` TEXT NOT NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_audit_logs_timestamp` ON `audit_logs` (`timestamp`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_audit_logs_callSessionId` ON `audit_logs` (`callSessionId`)")
+
+        safeAddColumn(db, "caller_profiles", "unresolvedRequests", "TEXT NOT NULL DEFAULT ''")
+        safeAddColumn(db, "caller_profiles", "preferences", "TEXT NOT NULL DEFAULT ''")
+        safeAddColumn(db, "action_items", "priority", "TEXT NOT NULL DEFAULT 'NORMAL'")
+
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_startTime` ON `call_records` (`startTime`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_callerNumber` ON `call_records` (`callerNumber`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_urgencyLevel` ON `call_records` (`urgencyLevel`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_riskLevel` ON `call_records` (`riskLevel`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_handlingStatus` ON `call_records` (`handlingStatus`)")
+
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_caller_profiles_phoneNumber` ON `caller_profiles` (`phoneNumber`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_caller_profiles_lastInteractionTime` ON `caller_profiles` (`lastInteractionTime`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_caller_profiles_isVerified` ON `caller_profiles` (`isVerified`)")
+
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_rules_isEnabled` ON `agent_rules` (`isEnabled`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_rules_priority` ON `agent_rules` (`priority`)")
+
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_schedules_isEnabled` ON `agent_schedules` (`isEnabled`)")
+    }
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        safeAddColumn(db, "call_records", "processingError", "TEXT DEFAULT NULL")
+        safeAddColumn(db, "caller_profiles", "unresolvedRequests", "TEXT NOT NULL DEFAULT ''")
+        safeAddColumn(db, "caller_profiles", "preferences", "TEXT NOT NULL DEFAULT ''")
+        safeAddColumn(db, "action_items", "priority", "TEXT NOT NULL DEFAULT 'NORMAL'")
+
         db.execSQL("CREATE TABLE IF NOT EXISTS `action_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `callSessionId` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `priority` TEXT NOT NULL, `dueDate` INTEGER, `isCompleted` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_action_items_callSessionId` ON `action_items` (`callSessionId`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_action_items_isCompleted` ON `action_items` (`isCompleted`)")
@@ -180,23 +225,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_rules_isEnabled` ON `agent_rules` (`isEnabled`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_rules_priority` ON `agent_rules` (`priority`)")
-
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_schedules_isEnabled` ON `agent_schedules` (`isEnabled`)")
     }
 }
 
-val MIGRATION_2_3 = object : Migration(2, 3) {
+val MIGRATION_1_3 = object : Migration(1, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        try {
-            db.execSQL("ALTER TABLE `call_records` ADD COLUMN `processingError` TEXT DEFAULT NULL")
-        } catch (e: Exception) {
-            // Column may already exist
-        }
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_startTime` ON `call_records` (`startTime`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_callerNumber` ON `call_records` (`callerNumber`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_urgencyLevel` ON `call_records` (`urgencyLevel`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_riskLevel` ON `call_records` (`riskLevel`)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_call_records_handlingStatus` ON `call_records` (`handlingStatus`)")
+        MIGRATION_1_2.migrate(db)
+        MIGRATION_2_3.migrate(db)
     }
 }
 
@@ -232,7 +268,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aicall_database.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_1_3)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
