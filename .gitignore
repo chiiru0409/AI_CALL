@@ -1,0 +1,27 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+hs_err_pid*
+replay_pid*
+*.log
+*.hprof
+
+# Build outputs
+build/
+app/build/
+
+# Signing keys & secrets
+*.jks
+*.keystore
+*.key
+*.p12
+*.pem
+.env
