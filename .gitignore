@@ -26,3 +26,16 @@ app/build/
 *.pem
 .env
 *logcat*.txt
+
+# AI Models & Audio Fixtures (kept outside git per instructions)
+*.bin
+models/
+*.wav
+*.mp3
+
+# Python Virtual Environments & Caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/

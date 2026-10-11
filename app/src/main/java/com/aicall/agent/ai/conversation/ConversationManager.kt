@@ -3,8 +3,10 @@ package com.aicall.agent.ai.conversation
 import com.aicall.agent.ai.policy.PolicyEnforcer
 import com.aicall.agent.ai.policy.PolicyValidationResult
 import com.aicall.agent.ai.policy.RiskAndUrgencyAssessor
+import com.aicall.agent.ai.voice.AudioStorageManager
 import com.aicall.agent.ai.voice.SpeechRecognizerEngine
 import com.aicall.agent.ai.voice.SpeechSynthesizerEngine
+import com.aicall.agent.ai.voice.VoiceStateMachine
 import com.aicall.agent.data.model.*
 import com.aicall.agent.data.repository.CallRepository
 import com.aicall.agent.data.repository.CallerMemoryRepository
@@ -31,7 +33,8 @@ class ConversationManager(
     private val callRepository: CallRepository,
     private val callerMemoryRepository: CallerMemoryRepository,
     private val speechRecognizer: SpeechRecognizerEngine,
-    private val speechSynthesizer: SpeechSynthesizerEngine
+    private val speechSynthesizer: SpeechSynthesizerEngine,
+    private val audioStorageManager: AudioStorageManager? = null
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -41,6 +44,26 @@ class ConversationManager(
     private var currentSessionId: String = ""
     private var knowledgeBaseText: String = ""
     private var preferredLanguage: String = "Telugu-English"
+    private var speechCollectionJob: Job? = null
+
+    val voiceStateMachine = VoiceStateMachine(
+        callback = object : VoiceStateMachine.StateCallback {
+            override fun onTransitionToListening() {
+                speechRecognizer.startListening()
+            }
+            override fun onTransitionToThinking(speechSamples: FloatArray) {}
+            override fun onTransitionToSpeaking() {}
+            override fun onTransitionToIdle() {
+                speechRecognizer.stopListening()
+            }
+            override fun onTransitionToEscalated() {
+                speechRecognizer.stopListening()
+            }
+            override fun stopTtsPlayback() {
+                speechSynthesizer.stop()
+            }
+        }
+    )
 
     fun startAiSession(
         sessionId: String,
@@ -54,6 +77,20 @@ class ConversationManager(
         currentSessionId = sessionId
         knowledgeBaseText = knowledge
         preferredLanguage = language
+
+        // Subscribe to recognized speech flow from speechRecognizer
+        speechCollectionJob?.cancel()
+        speechCollectionJob = coroutineScope.launch {
+            speechRecognizer.recognizedSpeechFlow.collect { recognizedText ->
+                if (_conversationState.value.isActive && recognizedText.isNotBlank()) {
+                    handleCallerInput(
+                        callerText = recognizedText,
+                        onHangUpRequested = onHangUpRequested,
+                        onEscalateRequested = onEscalateRequested
+                    )
+                }
+            }
+        }
 
         coroutineScope.launch {
             // Retrieve caller memory from Room persistence
@@ -81,8 +118,11 @@ class ConversationManager(
 
             val sanitizedIntro = policyEnforcer.sanitizeOutgoingSpeech(introResponse.spokenText)
             recordTurn("AI", sanitizedIntro)
-            speechSynthesizer.speak(sanitizedIntro)
-            speechRecognizer.startListening()
+            voiceStateMachine.onTtsPlaybackStarted()
+            speechSynthesizer.speak(sanitizedIntro) {
+                voiceStateMachine.onTtsPlaybackFinished()
+                voiceStateMachine.startListening()
+            }
         }
     }
 
@@ -113,6 +153,7 @@ class ConversationManager(
             }
         }
 
+        voiceStateMachine.onSpeechEndDetected(floatArrayOf())
         recordTurn("Caller", callerText)
 
         // 2. Generate agent turn
@@ -138,12 +179,18 @@ class ConversationManager(
             val finalText = policyEnforcer.sanitizeOutgoingSpeech(candidateText)
 
             recordTurn("AI", finalText)
+            voiceStateMachine.onTtsPlaybackStarted()
             speechSynthesizer.speak(finalText) {
+                voiceStateMachine.onTtsPlaybackFinished()
                 if (response.shouldEscalateToHuman) {
                     _conversationState.value = _conversationState.value.copy(isEscalated = true)
+                    voiceStateMachine.escalateToHuman()
                     onEscalateRequested()
                 } else if (response.shouldHangUp) {
+                    voiceStateMachine.reset()
                     onHangUpRequested()
+                } else {
+                    voiceStateMachine.startListening()
                 }
             }
         }
@@ -158,64 +205,108 @@ class ConversationManager(
         )
     }
 
-    fun endSessionAndPersist(outcome: HandlingStatus = HandlingStatus.AI_HANDLED) {
+    fun endSessionAndPersist(
+        outcome: HandlingStatus = HandlingStatus.AI_HANDLED,
+        actualDurationSeconds: Long? = null,
+        customSummary: String? = null,
+        isLocalVoiceTest: Boolean = false,
+        cleanupSessionAudio: Boolean = true
+    ) {
         val state = _conversationState.value
         if (!state.isActive) return
 
+        speechCollectionJob?.cancel()
+        speechCollectionJob = null
+        voiceStateMachine.reset()
         speechRecognizer.stopListening()
         speechSynthesizer.stop()
 
-        val fullTranscript = state.turns.joinToString("\n") { "${it.first}: ${it.second}" }
+        if (cleanupSessionAudio) {
+            audioStorageManager?.deleteSessionAudio(state.sessionId)
+        }
+
+        // Strict criterion: AI_HANDLED requires documented handling criteria (actual conversation turns with caller)
+        val hasCallerDialogue = state.turns.any { it.first == "Caller" }
+        val effectiveOutcome = if (!hasCallerDialogue && outcome == HandlingStatus.AI_HANDLED) {
+            HandlingStatus.MISSED
+        } else {
+            outcome
+        }
+
+        val finalDuration = actualDurationSeconds ?: (state.turns.size * 5).toLong()
+
+        // If no caller speech was ever intercepted/exchanged, transcript is empty/unavailable
+        val fullTranscript = if (hasCallerDialogue) {
+            state.turns.joinToString("\n") { "${it.first}: ${it.second}" }
+        } else {
+            ""
+        }
+
         val assessment = riskAssessor.assessConversation(
             callerNumber = state.callerNumber,
             isContact = state.callerName != null,
             transcript = fullTranscript
         )
 
+        val finalSummary = when {
+            !hasCallerDialogue && customSummary != null -> customSummary
+            !hasCallerDialogue -> "Call ended with no caller conversation (Transcript unavailable)."
+            customSummary != null -> "${assessment.summary} ($customSummary)"
+            else -> assessment.summary
+        }
+
+        val recordingStatusText = when {
+            isLocalVoiceTest && fullTranscript.isNotBlank() -> "Local voice test transcript preserved in Room storage"
+            fullTranscript.isNotBlank() -> "Transcript preserved in local storage"
+            else -> "Recording unavailable on this device (Cellular downlink audio not intercepted by OS)"
+        }
+
         coroutineScope.launch {
-            // Save CallRecord in Room
+            // Save CallRecord in Room with actual duration and verified handling criteria
             val record = CallRecord(
                 sessionId = state.sessionId,
                 callerNumber = state.callerNumber,
                 callerName = state.callerName,
                 direction = CallDirection.INCOMING,
-                durationSeconds = (state.turns.size * 5).toLong(),
+                startTime = System.currentTimeMillis() - (finalDuration * 1000L),
+                endTime = System.currentTimeMillis(),
+                durationSeconds = finalDuration,
                 category = assessment.category,
                 intent = assessment.intent,
                 urgencyLevel = assessment.urgency,
                 riskLevel = assessment.risk,
-                handlingStatus = outcome,
-                outcomeSummary = assessment.summary,
+                handlingStatus = effectiveOutcome,
+                outcomeSummary = finalSummary,
                 transcript = fullTranscript,
-                recordingStatus = "Transcript preserved in local storage",
+                recordingStatus = recordingStatusText,
                 callerLocation = "Telangana, India (Cell tower approximation)",
-                verificationStatus = if (state.callerName != null) "Contact List Match" else "Unverified"
+                verificationStatus = if (state.callerName != null) "Saved Address Book Contact (Unverified Caller ID)" else "Unsaved Caller Number (Unverified Caller ID)"
             )
             callRepository.saveCallRecord(record)
 
-            // Extract potential caller identity claim from transcript (e.g., "I am Rohit", "This is Suresh")
-            val claimedName = extractClaimedName(fullTranscript)
+            // Update caller memory profile in Room only when a genuine transcript exists
+            if (fullTranscript.isNotBlank()) {
+                val claimedName = extractClaimedName(fullTranscript)
 
-            // Update caller memory profile in Room
-            callerMemoryRepository.updateCallerMemory(
-                phoneNumber = state.callerNumber,
-                contactName = state.callerName,
-                claimedName = claimedName,
-                category = assessment.category,
-                memorySummary = "Call on ${java.text.SimpleDateFormat("dd MMM yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}: ${assessment.summary}",
-                unresolvedRequest = if (assessment.shouldEscalate) "Urgent callback requested regarding ${assessment.intent}" else null
-            )
-
-            // Create persistent action item in Room if callback needed
-            if (assessment.shouldEscalate) {
-                callRepository.addActionItem(
-                    ActionItem(
-                        callSessionId = state.sessionId,
-                        title = "Urgent Callback to ${state.callerName ?: claimedName ?: state.callerNumber}",
-                        description = "Reason: ${assessment.intent}",
-                        priority = if (assessment.urgency == UrgencyLevel.EMERGENCY) "URGENT" else "HIGH"
-                    )
+                callerMemoryRepository.updateCallerMemory(
+                    phoneNumber = state.callerNumber,
+                    contactName = state.callerName,
+                    claimedName = claimedName,
+                    category = assessment.category,
+                    memorySummary = "Call on ${java.text.SimpleDateFormat("dd MMM yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}: ${assessment.summary}",
+                    unresolvedRequest = if (assessment.shouldEscalate) "Urgent callback requested regarding ${assessment.intent}" else null
                 )
+
+                if (assessment.shouldEscalate) {
+                    callRepository.addActionItem(
+                        ActionItem(
+                            callSessionId = state.sessionId,
+                            title = "Urgent Callback to ${state.callerName ?: claimedName ?: state.callerNumber}",
+                            description = "Reason: ${assessment.intent}",
+                            priority = if (assessment.urgency == UrgencyLevel.EMERGENCY) "URGENT" else "HIGH"
+                        )
+                    )
+                }
             }
         }
 

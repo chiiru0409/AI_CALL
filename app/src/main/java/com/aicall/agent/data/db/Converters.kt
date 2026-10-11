@@ -26,7 +26,7 @@ class Converters {
     fun fromRiskLevel(value: RiskLevel): String = value.name
 
     @TypeConverter
-    fun toRiskLevel(value: String): RiskLevel = runCatching { RiskLevel.valueOf(value) }.getOrDefault(RiskLevel.SAFE)
+    fun toRiskLevel(value: String): RiskLevel = runCatching { RiskLevel.valueOf(value) }.getOrDefault(RiskLevel.NOT_ASSESSED)
 
     @TypeConverter
     fun fromHandlingStatus(value: HandlingStatus): String = value.name

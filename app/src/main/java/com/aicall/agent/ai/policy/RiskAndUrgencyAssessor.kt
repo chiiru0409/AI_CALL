@@ -20,6 +20,17 @@ class RiskAndUrgencyAssessor {
         isContact: Boolean,
         transcript: String
     ): AssessmentResult {
+        if (transcript.isBlank()) {
+            return AssessmentResult(
+                category = CallerCategory.OTHER,
+                urgency = UrgencyLevel.LOW,
+                risk = RiskLevel.NOT_ASSESSED,
+                intent = "No conversation recorded",
+                summary = "Call ended without speech or conversation transcript. Risk was not assessed.",
+                shouldEscalate = false
+            )
+        }
+
         val lower = transcript.lowercase()
 
         // 1. Urgency Assessment (including subtle indicators & multilingual signals)

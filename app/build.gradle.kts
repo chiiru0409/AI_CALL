@@ -22,6 +22,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -56,6 +59,13 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests.all {
+            it.maxParallelForks = 1
+            it.jvmArgs("-Xmx512m", "-XX:+UseSerialGC")
+        }
+    }
 }
 
 dependencies {
@@ -83,6 +93,9 @@ dependencies {
 
     // Security & Keystore
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // On-Device Whisper Speech Recognition Engine (whisper.cpp)
+    implementation("dev.ffmpegkit-maintained:whisper-android:1.0.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

@@ -17,7 +17,7 @@ enum class UrgencyLevel {
 }
 
 enum class RiskLevel {
-    SAFE, UNKNOWN, SUSPICIOUS, HIGH_RISK_FRAUD
+    SAFE, UNKNOWN, SUSPICIOUS, HIGH_RISK_FRAUD, NOT_ASSESSED
 }
 
 enum class HandlingStatus {
@@ -46,8 +46,8 @@ data class CallRecord(
     val category: CallerCategory = CallerCategory.OTHER,
     val intent: String = "",
     val urgencyLevel: UrgencyLevel = UrgencyLevel.LOW,
-    val riskLevel: RiskLevel = RiskLevel.SAFE,
-    val handlingStatus: HandlingStatus = HandlingStatus.USER_ANSWERED,
+    val riskLevel: RiskLevel = RiskLevel.NOT_ASSESSED,
+    val handlingStatus: HandlingStatus = HandlingStatus.MISSED,
     val outcomeSummary: String = "",
     val transcript: String = "",
     val recordingStatus: String = "Recording unavailable on this device",

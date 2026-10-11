@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -15,17 +16,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aicall.agent.ui.theme.AppShapes
 import com.aicall.agent.ui.theme.AvatarColors
-import com.aicall.agent.ui.theme.SurfaceCardElevated
-import com.aicall.agent.ui.theme.TextPrimary
 import kotlin.math.abs
 
 /**
- * Google Phone-inspired circular contact avatar with deterministic pastel color,
+ * Secure Dialer-inspired squircle contact avatar with deterministic color pairing,
  * initials calculation, and optional bottom-right phone badge overlay.
  */
 @Composable
@@ -34,6 +35,7 @@ fun ContactAvatar(
     modifier: Modifier = Modifier,
     phoneNumber: String? = null,
     size: Dp = 48.dp,
+    shape: Shape = AppShapes.Avatar,
     showPhoneBadge: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
@@ -54,44 +56,41 @@ fun ContactAvatar(
     }
 
     Box(
-        modifier = clickableModifier
-            .size(size),
+        modifier = clickableModifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Main Avatar Circle
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(CircleShape)
-                .background(backgroundColor),
-            contentAlignment = Alignment.Center
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = shape,
+            color = backgroundColor
         ) {
-            if (initials.isNotEmpty()) {
-                Text(
-                    text = initials,
-                    color = Color.White,
-                    fontSize = (size.value * 0.42f).sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.5).sp
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = name ?: "Contact",
-                    tint = Color.White,
-                    modifier = Modifier.size(size * 0.55f)
-                )
+            Box(contentAlignment = Alignment.Center) {
+                if (initials.isNotEmpty()) {
+                    Text(
+                        text = initials,
+                        color = Color.White,
+                        fontSize = (size.value * 0.40f).sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.5).sp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = name ?: "Contact",
+                        tint = Color.White,
+                        modifier = Modifier.size(size * 0.55f)
+                    )
+                }
             }
         }
 
-        // Optional bottom-right phone badge overlay (Google Phone Favorites style)
         if (showPhoneBadge) {
             Box(
                 modifier = Modifier
                     .size(size * 0.36f)
                     .align(Alignment.BottomEnd)
                     .offset(x = 2.dp, y = 2.dp)
-                    .clip(CircleShape)
+                    .clip(AppShapes.Small)
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
@@ -123,7 +122,6 @@ private fun getInitials(name: String?, phoneNumber: String?): String {
         }
     }
 
-    // Fallback if only numeric phone number
     if (!phoneNumber.isNullOrBlank()) {
         val digitsOnly = phoneNumber.filter { it.isDigit() }
         if (digitsOnly.isNotEmpty()) {

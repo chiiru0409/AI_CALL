@@ -1,5 +1,6 @@
 package com.aicall.agent.ui.incall
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -33,6 +34,10 @@ class IncomingCallActivity : ComponentActivity() {
                     callInfoFlow = CallManager.instance.callStateFlow,
                     onAnswerDirectly = {
                         CallManager.instance.answerCallDirectly()
+                        val intent = Intent(this@IncomingCallActivity, OngoingCallActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(intent)
                         finish()
                     },
                     onSendToAiAgent = {
@@ -54,6 +59,10 @@ class IncomingCallActivity : ComponentActivity() {
                                 CallManager.instance.takeOverFromAi()
                             }
                         )
+                        val intent = Intent(this@IncomingCallActivity, OngoingCallActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(intent)
                         finish()
                     },
                     onQuickCallback = {

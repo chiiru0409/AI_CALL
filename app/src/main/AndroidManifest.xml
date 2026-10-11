@@ -114,6 +114,15 @@
             </intent-filter>
         </service>
 
+        <!-- Speech Benchmark Automated Trigger Receiver -->
+        <receiver
+            android:name=".ai.benchmark.BenchmarkReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.aicall.agent.RUN_BENCHMARK" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

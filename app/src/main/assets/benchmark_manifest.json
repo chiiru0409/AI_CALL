@@ -1,0 +1,77 @@
+{
+  "benchmark_suite_version": "1.0.0",
+  "audio_format_specification": {
+    "sample_rate_hz": 16000,
+    "channels": 1,
+    "encoding": "PCM_16BIT",
+    "container": "WAV"
+  },
+  "samples": [
+    {
+      "sampleId": "EN_001",
+      "audioPath": "en/en_001_greeting_request.wav",
+      "category": "en",
+      "referenceTranscript": "Hello, I am calling to confirm our appointment tomorrow at ten AM.",
+      "scriptConvention": "en_Latn",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 5952,
+      "notes": "Conversational English, standard pacing, clear telephony quality"
+    },
+    {
+      "sampleId": "EN_002",
+      "audioPath": "en/en_002_caller_inquiry.wav",
+      "category": "en",
+      "referenceTranscript": "Can you please ask Rahul to call me back on this number?",
+      "scriptConvention": "en_Latn",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 4344,
+      "notes": "Name recognition (Rahul) and callback inquiry"
+    },
+    {
+      "sampleId": "TE_001",
+      "audioPath": "te/te_001_greeting_native.wav",
+      "category": "te",
+      "referenceTranscript": "నమస్కారం, మీరు ఇప్పుడు మాట్లాడగలరా?",
+      "scriptConvention": "te_Telu",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 2904,
+      "notes": "Standard colloquial Telugu greeting and availability check"
+    },
+    {
+      "sampleId": "TE_002",
+      "audioPath": "te/te_002_callback_request.wav",
+      "category": "te",
+      "referenceTranscript": "నా పేరు సురేష్, పని అయ్యాక నాకు ఫోన్ చేయమనండి.",
+      "scriptConvention": "te_Telu",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 3792,
+      "notes": "Caller name (సురేష్) and callback instruction in native Telugu script"
+    },
+    {
+      "sampleId": "MIX_001",
+      "audioPath": "mixed/mix_001_delivery_otp.wav",
+      "category": "mixed",
+      "referenceTranscript": "Delivery boy vachada, OTP cheppala?",
+      "scriptConvention": "te_Latn",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 3000,
+      "notes": "High frequency everyday conversational code-mixing with delivery context"
+    },
+    {
+      "sampleId": "MIX_002",
+      "audioPath": "mixed/mix_002_urgent_meeting.wav",
+      "category": "mixed",
+      "referenceTranscript": "Urgent ga meeting undi, call disconnect chestunna.",
+      "scriptConvention": "te_Latn",
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "durationMs": 3384,
+      "notes": "Code-mixed urgency indicator with English technical terms"
+    }
+  ]
+}

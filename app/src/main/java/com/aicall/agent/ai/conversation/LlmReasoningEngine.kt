@@ -79,7 +79,7 @@ class RuleBasedReasoningEngine : LlmReasoningEngine {
         }
 
         // Urgency / Emergency
-        if (lastCallerUtterance.contains("urgent") || lastCallerUtterance.contains("emergency") || lastCallerUtterance.contains("hospital")) {
+        if (lastCallerUtterance.contains("urgent") || lastCallerUtterance.contains("emergency") || lastCallerUtterance.contains("hospital") || lastCallerUtterance.contains("accident")) {
             val reply = if (isTelugu) {
                 "ఇది చాలా ముఖ్యమైనదిగా కనిపిస్తుంది. నేను వెంటనే యూజర్ కి అత్యవసర నోటిఫికేషన్ పంపుతున్నాను."
             } else {

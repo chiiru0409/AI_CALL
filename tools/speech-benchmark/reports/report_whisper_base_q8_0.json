@@ -1,0 +1,128 @@
+{
+  "engineId": "ggml-base-q8_0",
+  "totalSamples": 6,
+  "overallWer": 0.6896825396825398,
+  "overallCer": 0.5597342625644511,
+  "overallRtf": 2.100959904509332,
+  "categorySummaries": [
+    {
+      "category": "en",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 0.08333333333333333,
+      "averageCer": 0.02830188679245283,
+      "averageRtf": 0.9485028478286699,
+      "averageProcessingTimeMs": 4754.5
+    },
+    {
+      "category": "te",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 1,
+      "averageCer": 1.0675675675675675,
+      "averageRtf": 2.264263390522021,
+      "averageProcessingTimeMs": 7841.5
+    },
+    {
+      "category": "mixed",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 0.9857142857142857,
+      "averageCer": 0.5833333333333334,
+      "averageRtf": 3.090113475177305,
+      "averageProcessingTimeMs": 10134
+    }
+  ],
+  "detailedResults": [
+    {
+      "sampleId": "EN_001",
+      "category": "en",
+      "referenceTranscript": "Hello, I am calling to confirm our appointment tomorrow at ten AM.",
+      "hypothesisTranscript": "Hello, I am calling to confirm our appointment tomorrow at 10am.",
+      "wer": 0.16666666666666666,
+      "cer": 0.05660377358490566,
+      "audioDurationMs": 5952,
+      "processingTimeMs": 4695,
+      "rtf": 0.7888104838709677,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1137926672,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "EN_002",
+      "category": "en",
+      "referenceTranscript": "Can you please ask Rahul to call me back on this number?",
+      "hypothesisTranscript": "Can you please ask Rahul to call me back on this number?",
+      "wer": 0,
+      "cer": 0,
+      "audioDurationMs": 4344,
+      "processingTimeMs": 4814,
+      "rtf": 1.108195211786372,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1137940448,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "TE_001",
+      "category": "te",
+      "referenceTranscript": "నమస్కారం, మీరు ఇప్పుడు మాట్లాడగలరా?",
+      "hypothesisTranscript": "நமسکارம, میری இப்பு மாٹ்டைகளரா",
+      "wer": 1,
+      "cer": 1,
+      "audioDurationMs": 2904,
+      "processingTimeMs": 4870,
+      "rtf": 1.6769972451790633,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1137948672,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "TE_002",
+      "category": "te",
+      "referenceTranscript": "నా పేరు సురేష్, పని అయ్యాక నాకు ఫోన్ చేయమనండి.",
+      "hypothesisTranscript": "Na Pairu Suresh, Pani Ayaka, Nakhufon Chayamanandi.",
+      "wer": 1,
+      "cer": 1.135135135135135,
+      "audioDurationMs": 3792,
+      "processingTimeMs": 10813,
+      "rtf": 2.851529535864979,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1175922912,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "MIX_001",
+      "category": "mixed",
+      "referenceTranscript": "Delivery boy vachada, OTP cheppala?",
+      "hypothesisTranscript": "دلوری بای وچڑا, او ٹی پیچپڑا لہ",
+      "wer": 1.4,
+      "cer": 1,
+      "audioDurationMs": 3000,
+      "processingTimeMs": 5046,
+      "rtf": 1.682,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1175927680,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "MIX_002",
+      "category": "mixed",
+      "referenceTranscript": "Urgent ga meeting undi, call disconnect chestunna.",
+      "hypothesisTranscript": "Adjentga Meeting Vundhi. Call disconnect chestna.",
+      "wer": 0.5714285714285714,
+      "cer": 0.16666666666666666,
+      "audioDurationMs": 3384,
+      "processingTimeMs": 15222,
+      "rtf": 4.49822695035461,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1176056896,
+      "modelFootprintBytes": 81768585,
+      "errorMessage": ""
+    }
+  ]
+}

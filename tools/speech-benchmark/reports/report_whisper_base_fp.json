@@ -1,0 +1,128 @@
+{
+  "engineId": "ggml-base",
+  "totalSamples": 6,
+  "overallWer": 0.6896825396825398,
+  "overallCer": 0.5557660085961972,
+  "overallRtf": 3.3123965435631537,
+  "categorySummaries": [
+    {
+      "category": "en",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 0.08333333333333333,
+      "averageCer": 0.02830188679245283,
+      "averageRtf": 1.4598315065644865,
+      "averageProcessingTimeMs": 7333
+    },
+    {
+      "category": "te",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 1,
+      "averageCer": 1.0675675675675675,
+      "averageRtf": 3.858702095756181,
+      "averageProcessingTimeMs": 13480
+    },
+    {
+      "category": "mixed",
+      "sampleCount": 2,
+      "successfulInferences": 2,
+      "averageWer": 0.9857142857142857,
+      "averageCer": 0.5714285714285714,
+      "averageRtf": 4.618656028368794,
+      "averageProcessingTimeMs": 15105.5
+    }
+  ],
+  "detailedResults": [
+    {
+      "sampleId": "EN_001",
+      "category": "en",
+      "referenceTranscript": "Hello, I am calling to confirm our appointment tomorrow at ten AM.",
+      "hypothesisTranscript": "Hello, I am calling to confirm our appointment tomorrow at 10am.",
+      "wer": 0.16666666666666666,
+      "cer": 0.05660377358490566,
+      "audioDurationMs": 5952,
+      "processingTimeMs": 7340,
+      "rtf": 1.2331989247311828,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1204145440,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "EN_002",
+      "category": "en",
+      "referenceTranscript": "Can you please ask Rahul to call me back on this number?",
+      "hypothesisTranscript": "Can you please ask Rahul to call me back on this number?",
+      "wer": 0,
+      "cer": 0,
+      "audioDurationMs": 4344,
+      "processingTimeMs": 7326,
+      "rtf": 1.6864640883977902,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1204286080,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "TE_001",
+      "category": "te",
+      "referenceTranscript": "నమస్కారం, మీరు ఇప్పుడు మాట్లాడగలరా?",
+      "hypothesisTranscript": "நமسکارம, میرு இப்பு மாٹ்டைகளரா",
+      "wer": 1,
+      "cer": 1,
+      "audioDurationMs": 2904,
+      "processingTimeMs": 7536,
+      "rtf": 2.5950413223140494,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1204155488,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "TE_002",
+      "category": "te",
+      "referenceTranscript": "నా పేరు సురేష్, పని అయ్యాక నాకు ఫోన్ చేయమనండి.",
+      "hypothesisTranscript": "Na pairu Suresh, Pani Ayaka na kufoon Chayamanandi.",
+      "wer": 1,
+      "cer": 1.135135135135135,
+      "audioDurationMs": 3792,
+      "processingTimeMs": 19424,
+      "rtf": 5.122362869198312,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1242085888,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "MIX_001",
+      "category": "mixed",
+      "referenceTranscript": "Delivery boy vachada, OTP cheppala?",
+      "hypothesisTranscript": "دلوری بای وچڑا, او ٹی پیچپڑا لہ",
+      "wer": 1.4,
+      "cer": 1,
+      "audioDurationMs": 3000,
+      "processingTimeMs": 8188,
+      "rtf": 2.7293333333333334,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1242090688,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    },
+    {
+      "sampleId": "MIX_002",
+      "category": "mixed",
+      "referenceTranscript": "Urgent ga meeting undi, call disconnect chestunna.",
+      "hypothesisTranscript": "Adjentga Meeting Vundi, call disconnect chestna.",
+      "wer": 0.5714285714285714,
+      "cer": 0.14285714285714285,
+      "audioDurationMs": 3384,
+      "processingTimeMs": 22023,
+      "rtf": 6.507978723404255,
+      "status": "SUCCESS",
+      "memoryPeakBytes": 1242219392,
+      "modelFootprintBytes": 147951465,
+      "errorMessage": ""
+    }
+  ]
+}

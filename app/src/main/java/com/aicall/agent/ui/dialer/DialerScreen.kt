@@ -11,39 +11,35 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.aicall.agent.data.model.CallRecord
-import com.aicall.agent.data.util.PhoneNumberUtils
-import com.aicall.agent.ui.components.CallHistoryRow
-import com.aicall.agent.ui.components.ContactAvatar
-import com.aicall.agent.ui.components.GoogleSearchBar
+import com.aicall.agent.ui.components.HeaderSearchBar
+import com.aicall.agent.ui.components.RecentCallRow
 import com.aicall.agent.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class DeviceContact(
@@ -53,20 +49,23 @@ data class DeviceContact(
 )
 
 /**
- * Google Phone-inspired Dialer Screen featuring pill search, horizontal favorites,
- * recents list, and a collapsible tactile dialpad with FAB toggle.
+ * Secure Dialer-adapted Main Dialer Screen with Header Search Bar,
+ * Sub-pager (Recents & Contacts), and tactile T9 squircle Dialpad sheet.
  */
 @Composable
 fun DialerScreen(
     recentCallsFlow: Flow<List<CallRecord>>,
-    onCallInitiated: (String) -> Unit
+    onCallInitiated: (String) -> Unit,
+    onCallRecordDetailClicked: ((CallRecord) -> Unit)? = null,
+    onSettingsClicked: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
-    var inputNumber by remember { mutableStateOf("") }
-    var isDialpadOpen by remember { mutableStateOf(false) }
+    var dialpadInput by remember { mutableStateOf("") }
+    var isDialpadVisible by remember { mutableStateOf(false) }
 
     val recentCalls by recentCallsFlow.collectAsState(initial = emptyList())
     var deviceContacts by remember { mutableStateOf<List<DeviceContact>>(emptyList()) }
@@ -90,7 +89,7 @@ fun DialerScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { _ -> }
 
-    // Filter recent calls based on search bar query
+    // Filter recent calls
     val filteredRecentCalls = remember(recentCalls, searchQuery) {
         if (searchQuery.isBlank()) {
             recentCalls
@@ -102,10 +101,21 @@ fun DialerScreen(
         }
     }
 
-    // Derive favorites: top device contacts or frequent verified recent callers
+    // Filter contacts
+    val filteredContacts = remember(deviceContacts, searchQuery) {
+        if (searchQuery.isBlank()) {
+            deviceContacts
+        } else {
+            deviceContacts.filter { contact ->
+                contact.name.contains(searchQuery, ignoreCase = true) ||
+                        contact.phoneNumber.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     val favorites = remember(deviceContacts, recentCalls) {
         if (deviceContacts.isNotEmpty()) {
-            deviceContacts.take(8)
+            deviceContacts.take(6)
         } else {
             recentCalls.filter { !it.callerName.isNullOrBlank() }
                 .distinctBy { it.callerNumber }
@@ -114,35 +124,35 @@ fun DialerScreen(
         }
     }
 
+    val tabs = listOf("Recents", "Contacts")
+    val pagerState = rememberPagerState { tabs.size }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Google Phone Pill Search Bar
-            GoogleSearchBar(
-                query = searchQuery,
+            // Secure Dialer Pill Search Bar
+            HeaderSearchBar(
+                searchQuery = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholderText = "Search contacts & places..."
+                onSettingsClick = { onSettingsClicked?.invoke() }
             )
 
-            // Default Dialer Role Prompt Banner (if not already default)
+            // Default Dialer Banner
             if (!isDefaultDialer && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                Spacer(modifier = Modifier.height(8.dp))
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    shape = AppShapes.Card,
                     colors = CardDefaults.cardColors(containerColor = SurfaceCardElevated)
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -154,339 +164,229 @@ fun DialerScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Set as default phone app",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontSize = 14.sp,
+                                text = "Set as default dialer",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Enables AI auto-screening and telecom dialer handling.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                fontSize = 12.sp
+                                text = "Enables native cellular call screening & Telecom routing.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
                                 val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_DIALER)
                                 if (intent != null) roleLauncher.launch(intent)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                            shape = RoundedCornerShape(20.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            shape = AppShapes.Small,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Text("Set", color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Set", color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }
             }
 
-            // Main Content List: Favorites row + Recents list
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(top = 14.dp, bottom = if (isDialpadOpen) 380.dp else 90.dp)
+            // Tab Selector Row
+            TabRow(
+                selectedTabIndex = pagerState.currentPage,
+                containerColor = BackgroundDark,
+                contentColor = AccentPurple,
+                divider = { HorizontalDivider(color = SurfaceCardBorder.copy(alpha = 0.3f), thickness = 0.8.dp) },
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                        height = 3.dp,
+                        color = AccentPurple
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
-                // Favorites Section (Google Phone Style horizontal avatars)
-                if (searchQuery.isBlank() && favorites.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+                        text = {
                             Text(
-                                text = "Favorites",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium,
+                                color = if (pagerState.currentPage == index) AccentPurple else TextSecondary
                             )
                         }
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            items(favorites) { contact ->
-                                FavoriteContactItem(
-                                    contact = contact,
-                                    onClick = { onCallInitiated(contact.phoneNumber) }
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-                        HorizontalDivider(color = SurfaceCardBorder.copy(alpha = 0.5f), thickness = 0.8.dp)
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-                }
-
-                // Section Header: Recents
-                item {
-                    Text(
-                        text = if (searchQuery.isBlank()) "Recent calls" else "Search results",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 6.dp, top = 2.dp)
                     )
                 }
+            }
 
-                // Recents Call List
-                if (filteredRecentCalls.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 40.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Call,
-                                    contentDescription = null,
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(44.dp)
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = if (searchQuery.isBlank()) "No recent calls" else "No matching calls found",
-                                    color = TextSecondary,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "Cellular calls screened by AI will appear here",
-                                    color = TextMuted,
-                                    fontSize = 12.sp
-                                )
+            // Pager Content: Recents & Contacts
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        // RECENTS TAB
+                        if (filteredRecentCalls.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = if (searchQuery.isBlank()) "No recent call history" else "No matching calls found",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 10.dp,
+                                    bottom = if (isDialpadVisible) 420.dp else 96.dp
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(
+                                    items = filteredRecentCalls,
+                                    key = { it.sessionId }
+                                ) { callRecord ->
+                                    RecentCallRow(
+                                        call = callRecord,
+                                        onCallClick = { onCallInitiated(callRecord.callerNumber) },
+                                        onDetailsClick = { onCallRecordDetailClicked?.invoke(callRecord) }
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    items(filteredRecentCalls) { call ->
-                        CallHistoryRow(
-                            call = call,
-                            onClick = { onCallInitiated(call.callerNumber) },
-                            onCallClick = { onCallInitiated(call.callerNumber) }
+
+                    1 -> {
+                        // CONTACTS TAB
+                        ContactsTab(
+                            contacts = filteredContacts,
+                            favorites = favorites,
+                            onContactClick = { contact -> onCallInitiated(contact.phoneNumber) }
                         )
                     }
                 }
             }
         }
 
-        // Floating Action Button (FAB) to toggle Dialpad (when dialpad is closed)
-        if (!isDialpadOpen) {
-            FloatingActionButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    isDialpadOpen = true
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 24.dp)
-                    .size(62.dp),
-                shape = RoundedCornerShape(18.dp),
-                containerColor = AccentPurple,
-                contentColor = BackgroundDark
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Dialpad,
-                    contentDescription = "Open dialpad",
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-
-        // Collapsible Dialpad Sheet (Google Phone Style Bottom Slide-Up)
+        // Tactile T9 Dialpad Sheet (Sliding from bottom)
         AnimatedVisibility(
-            visible = isDialpadOpen,
-            enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(250)) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)) + fadeOut(),
+            visible = isDialpadVisible,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(220)
+            ) + fadeIn(animationSpec = tween(180)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(180)
+            ) + fadeOut(animationSpec = tween(140)),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = AppShapes.BottomSheet,
                 color = SurfaceDark,
-                tonalElevation = 12.dp,
-                shadowElevation = 16.dp
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceCardBorder.copy(alpha = 0.5f))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(top = 8.dp, bottom = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Pull / dismiss handle
+                    // Drag handle
                     Box(
                         modifier = Modifier
                             .width(36.dp)
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(TextMuted.copy(alpha = 0.5f))
-                            .clickable { isDialpadOpen = false }
                     )
-
-                    // Dialed Number Display Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp, bottom = 6.dp, start = 16.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = if (inputNumber.isEmpty()) "" else PhoneNumberUtils.normalize(inputNumber),
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Backspace Button with click (single delete) & long-press (clear all)
-                        if (inputNumber.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                inputNumber = inputNumber.dropLast(1)
-                                            },
-                                            onLongPress = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                inputNumber = ""
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Backspace,
-                                    contentDescription = "Backspace",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Tactile Dialpad Grid
-                    Dialpad(
-                        onDigitClicked = { digit -> inputNumber += digit },
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Call & Dismiss Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp, start = 24.dp, end = 24.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        // Dismiss Keypad Button
                         IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                isDialpadOpen = false
-                            },
-                            modifier = Modifier.size(48.dp)
+                            onClick = { isDialpadVisible = false },
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.KeyboardHide,
-                                contentDescription = "Hide dialpad",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(26.dp)
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Hide Dialpad",
+                                tint = TextSecondary
                             )
                         }
-
-                        // Large Green Call Button
-                        Box(
-                            modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape)
-                                .background(CallActionGreen)
-                                .clickable {
-                                    if (inputNumber.isNotBlank()) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onCallInitiated(inputNumber)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Call,
-                                contentDescription = "Call",
-                                tint = TextPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        // Empty spacer for symmetric alignment
-                        Spacer(modifier = Modifier.size(48.dp))
                     }
+
+                    Dialpad(
+                        inputValue = dialpadInput,
+                        onValueChange = { dialpadInput = it },
+                        onCallClick = { number ->
+                            isDialpadVisible = false
+                            onCallInitiated(number)
+                            dialpadInput = ""
+                        }
+                    )
                 }
             }
         }
-    }
-}
 
-/**
- * Circular Favorite Contact Item matching Google Phone's Favorites row
- */
-@Composable
-fun FavoriteContactItem(
-    contact: DeviceContact,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(68.dp)
-            .clickable { onClick() }
-    ) {
-        ContactAvatar(
-            name = contact.name,
-            phoneNumber = contact.phoneNumber,
-            size = 58.dp,
-            showPhoneBadge = true
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = contact.name,
-            fontSize = 12.sp,
-            color = TextPrimary,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
-        )
-
-        Text(
-            text = contact.type,
-            fontSize = 10.sp,
-            color = TextMuted,
-            maxLines = 1,
-            textAlign = TextAlign.Center
-        )
+        // Floating Dialpad Action Button (when Dialpad is hidden)
+        if (!isDialpadVisible) {
+            FloatingActionButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    isDialpadVisible = true
+                },
+                containerColor = AccentPurple,
+                contentColor = BackgroundDark,
+                shape = AppShapes.Keypad,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 20.dp)
+                    .size(60.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Dialpad,
+                    contentDescription = "Open Dialpad",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
     }
 }
 
@@ -494,47 +394,47 @@ private fun loadDeviceContacts(context: Context): List<DeviceContact> {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
         return emptyList()
     }
-    val contacts = mutableListOf<DeviceContact>()
-    val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+
+    val contactsList = mutableListOf<DeviceContact>()
+    val seenNumbers = mutableSetOf<String>()
+
     val projection = arrayOf(
-        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY,
         ContactsContract.CommonDataKinds.Phone.NUMBER,
         ContactsContract.CommonDataKinds.Phone.TYPE
     )
 
     try {
-        context.contentResolver.query(
-            uri,
+        val cursor = context.contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             projection,
             null,
             null,
-            "${ContactsContract.CommonDataKinds.Phone.STARRED} DESC, ${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
-        )?.use { cursor ->
-            val nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-            val typeIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
-            val seenNumbers = mutableSetOf<String>()
+            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY} ASC"
+        )
 
-            while (cursor.moveToNext() && contacts.size < 12) {
-                val name = if (nameIdx != -1) cursor.getString(nameIdx) else null
-                val number = if (numberIdx != -1) cursor.getString(numberIdx) else null
-                val typeInt = if (typeIdx != -1) cursor.getInt(typeIdx) else ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
-                val type = when (typeInt) {
+        cursor?.use {
+            val nameIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY)
+            val numIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            val typeIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
+
+            while (it.moveToNext()) {
+                val name = it.getString(nameIdx) ?: "Unknown"
+                val number = it.getString(numIdx)?.replace(Regex("[^0-9+]"), "") ?: ""
+                val typeInt = if (typeIdx >= 0) it.getInt(typeIdx) else ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
+
+                val typeStr = when (typeInt) {
                     ContactsContract.CommonDataKinds.Phone.TYPE_HOME -> "Home"
                     ContactsContract.CommonDataKinds.Phone.TYPE_WORK -> "Work"
                     else -> "Mobile"
                 }
 
-                if (!name.isNullOrBlank() && !number.isNullOrBlank()) {
-                    val cleanNum = number.replace(Regex("[^0-9+]"), "")
-                    if (!seenNumbers.contains(cleanNum)) {
-                        seenNumbers.add(cleanNum)
-                        contacts.add(DeviceContact(name, number, type))
-                    }
+                if (number.isNotBlank() && seenNumbers.add(number)) {
+                    contactsList.add(DeviceContact(name, number, typeStr))
                 }
             }
         }
     } catch (_: Exception) {}
 
-    return contacts
+    return contactsList
 }

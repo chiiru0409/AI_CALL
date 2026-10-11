@@ -45,12 +45,28 @@ class AiCallApp : Application() {
         agentConfigRepository = AgentConfigRepository(this, database.agentRuleDao(), database.agentScheduleDao())
 
         // 2. Initialize AI Engines & Policy Layer
-        val speechRec = DefaultSpeechRecognizerEngine()
+        val whisperModelFile = java.io.File("/data/local/tmp/aicall/models/ggml-base-q8_0.bin")
+        val altModelFile = java.io.File("/data/local/tmp/aicall/models/ggml-base.bin")
+        val activeModelFile = when {
+            whisperModelFile.exists() -> whisperModelFile
+            altModelFile.exists() -> altModelFile
+            else -> null
+        }
+        val whisperEngine = activeModelFile?.let {
+            com.aicall.agent.ai.voice.WhisperSpeechRecognizerEngine(this, it.absolutePath)
+        }
+        val androidEngine = com.aicall.agent.ai.voice.AndroidSpeechRecognizerEngine(this)
+        val speechRec: com.aicall.agent.ai.voice.SpeechRecognizerEngine = com.aicall.agent.ai.voice.HybridSpeechRecognizerEngine(
+            context = this,
+            whisperEngine = whisperEngine,
+            androidSpeechEngine = androidEngine
+        )
         val speechSyn = AndroidTtsEngine(this)
         val reasoning = RuleBasedReasoningEngine()
         val policy = PolicyEnforcer()
         val assessor = RiskAndUrgencyAssessor()
 
+        val audioStorage = com.aicall.agent.ai.voice.AudioStorageManager(this)
         conversationManager = ConversationManager(
             reasoningEngine = reasoning,
             policyEnforcer = policy,
@@ -58,11 +74,12 @@ class AiCallApp : Application() {
             callRepository = callRepository,
             callerMemoryRepository = callerMemoryRepository,
             speechRecognizer = speechRec,
-            speechSynthesizer = speechSyn
+            speechSynthesizer = speechSyn,
+            audioStorageManager = audioStorage
         )
 
         // 3. Initialize Telecom CallManager
-        CallManager.instance.initialize(this, callRepository)
+        CallManager.instance.initialize(this, callRepository, conversationManager, agentConfigRepository)
 
         // 4. Create Notification Channels
         createNotificationChannels()
