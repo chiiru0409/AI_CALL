@@ -25,3 +25,4 @@ app/build/
 *.p12
 *.pem
 .env
+*logcat*.txt

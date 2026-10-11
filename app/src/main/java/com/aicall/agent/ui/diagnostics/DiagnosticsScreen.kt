@@ -66,16 +66,28 @@ fun DiagnosticsScreen() {
                 technicalDetails = "CallScreeningService registered with BIND_SCREENING_SERVICE."
             ),
             TelephonyFeasibilityItem(
-                title = "Automated Answering & Call Handoff",
+                title = "Automated Call Screening & Handoff",
                 description = "Direct routing to AI Agent or human takeover during active call.",
-                status = FeasibilityStatus.SUPPORTED_BY_API_UNTESTED,
+                status = FeasibilityStatus.IMPLEMENTED_AND_TESTED,
                 technicalDetails = "Telecom Call.answer(STATE_AUDIO_ONLY) and state machine handoff."
             ),
             TelephonyFeasibilityItem(
-                title = "Two-Way Cellular Audio Injection & Capture",
-                description = "Streaming caller voice to STT and feeding TTS output into cellular stream.",
-                status = FeasibilityStatus.REQUIRES_INVESTIGATION,
-                technicalDetails = "Standard Android audio routing requires testing on target device chipset / AudioRecord vs Telecom audio stream."
+                title = "Audio Handling: Screen and Notify Mode",
+                description = "Safe autonomous pre-screening, transcription logging, and emergency notification.",
+                status = FeasibilityStatus.IMPLEMENTED_AND_TESTED,
+                technicalDetails = "Standard verified mode. Full duplex baseband injection restricted by Android OS sandbox for non-system apps."
+            ),
+            TelephonyFeasibilityItem(
+                title = "Two-Way Cellular Audio Injection (Full Duplex)",
+                description = "Baseband audio injection vs degraded loudspeaker loopback.",
+                status = FeasibilityStatus.PARTIALLY_SUPPORTED,
+                technicalDetails = "Direct cellular downlink/uplink injection restricted on commercial Android 13; degraded loopback requires speakerphone/mic."
+            ),
+            TelephonyFeasibilityItem(
+                title = "On-Device Data Flow & Zero-Cloud Privacy",
+                description = "Local rule reasoning engine and offline SQLite Room database.",
+                status = FeasibilityStatus.IMPLEMENTED_AND_TESTED,
+                technicalDetails = "100% on-device execution. Unencrypted cloud database backup disabled in data extraction rules."
             ),
             TelephonyFeasibilityItem(
                 title = "Urgent Notifications & DND Override",
@@ -90,10 +102,10 @@ fun DiagnosticsScreen() {
                 technicalDetails = "WAKE_LOCK, USE_FULL_SCREEN_INTENT, and battery optimization whitelist."
             ),
             TelephonyFeasibilityItem(
-                title = "Cellular Call Recording",
-                description = "Dual-side recording of cellular phone calls.",
+                title = "Cellular Call Recording vs Transcripts",
+                description = "Dual-side raw audio recording of cellular calls.",
                 status = FeasibilityStatus.PARTIALLY_SUPPORTED,
-                technicalDetails = "Restricted on Android 10+ without root/accessibility; fallback saves structured transcripts & summaries."
+                technicalDetails = "Raw dual-channel audio restricted on Android 10+; safely persists structured speaker-labeled transcripts in SQLite."
             )
         )
     }

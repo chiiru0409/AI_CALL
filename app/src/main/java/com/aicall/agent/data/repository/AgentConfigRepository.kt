@@ -68,24 +68,18 @@ class AgentConfigRepository(
     suspend fun deleteSchedule(schedule: AgentSchedule) = agentScheduleDao.deleteSchedule(schedule)
 
     fun isAgentActiveNow(schedules: List<AgentSchedule>? = null): Boolean {
+        return isAgentActiveAt(Calendar.getInstance(), schedules)
+    }
+
+    fun isAgentActiveAt(cal: Calendar, schedules: List<AgentSchedule>? = null): Boolean {
         if (!_isAgentModeEnabled.value) return false
         if (!_isScheduleModeActive.value) return true // Manual mode ON
 
-        val cal = Calendar.getInstance()
         val currentDay = cal.get(Calendar.DAY_OF_WEEK) // Sunday=1, Monday=2, ...
         val currentMinute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        // Day of week bit: Monday=1 (1<<0), Tuesday=2 (1<<1), Wednesday=4 (1<<2), Thursday=8 (1<<3), Friday=16 (1<<4), Saturday=32 (1<<5), Sunday=64 (1<<6)
-        val dayBit = when (currentDay) {
-            Calendar.MONDAY -> 1
-            Calendar.TUESDAY -> 2
-            Calendar.WEDNESDAY -> 4
-            Calendar.THURSDAY -> 8
-            Calendar.FRIDAY -> 16
-            Calendar.SATURDAY -> 32
-            Calendar.SUNDAY -> 64
-            else -> 1
-        }
+        val dayBit = dayOfWeekToBit(currentDay)
+        val prevDayBit = dayOfWeekToBit(getPreviousDayOfWeek(currentDay))
 
         val activeList = schedules ?: emptyList()
         if (activeList.isEmpty()) {
@@ -94,13 +88,50 @@ class AgentConfigRepository(
 
         return activeList.any { schedule ->
             if (!schedule.isEnabled) return@any false
-            val dayMatches = (schedule.daysOfWeekMask and dayBit) != 0
-            if (!dayMatches) return@any false
 
-            if (schedule.crossesMidnight || schedule.startMinuteOfDay > schedule.endMinuteOfDay) {
-                currentMinute >= schedule.startMinuteOfDay || currentMinute < schedule.endMinuteOfDay
+            val isOvernight = schedule.crossesMidnight || schedule.startMinuteOfDay > schedule.endMinuteOfDay
+
+            if (schedule.startMinuteOfDay == schedule.endMinuteOfDay) {
+                // Equal start and end times represent 24-hour active window on configured days
+                (schedule.daysOfWeekMask and dayBit) != 0
+            } else if (isOvernight) {
+                // Active if:
+                // 1) Current day evening window: today's bit is selected AND time >= startMinuteOfDay
+                val eveningActive = ((schedule.daysOfWeekMask and dayBit) != 0) && (currentMinute >= schedule.startMinuteOfDay)
+                // 2) Previous day overnight morning window: yesterday's bit was selected AND time < endMinuteOfDay
+                val morningActive = ((schedule.daysOfWeekMask and prevDayBit) != 0) && (currentMinute < schedule.endMinuteOfDay)
+                eveningActive || morningActive
             } else {
-                currentMinute >= schedule.startMinuteOfDay && currentMinute < schedule.endMinuteOfDay
+                val dayMatches = (schedule.daysOfWeekMask and dayBit) != 0
+                dayMatches && (currentMinute >= schedule.startMinuteOfDay) && (currentMinute < schedule.endMinuteOfDay)
+            }
+        }
+    }
+
+    companion object {
+        fun dayOfWeekToBit(dayOfWeek: Int): Int {
+            return when (dayOfWeek) {
+                Calendar.MONDAY -> 1
+                Calendar.TUESDAY -> 2
+                Calendar.WEDNESDAY -> 4
+                Calendar.THURSDAY -> 8
+                Calendar.FRIDAY -> 16
+                Calendar.SATURDAY -> 32
+                Calendar.SUNDAY -> 64
+                else -> 1
+            }
+        }
+
+        fun getPreviousDayOfWeek(dayOfWeek: Int): Int {
+            return when (dayOfWeek) {
+                Calendar.SUNDAY -> Calendar.SATURDAY
+                Calendar.MONDAY -> Calendar.SUNDAY
+                Calendar.TUESDAY -> Calendar.MONDAY
+                Calendar.WEDNESDAY -> Calendar.TUESDAY
+                Calendar.THURSDAY -> Calendar.WEDNESDAY
+                Calendar.FRIDAY -> Calendar.THURSDAY
+                Calendar.SATURDAY -> Calendar.FRIDAY
+                else -> Calendar.SUNDAY
             }
         }
     }

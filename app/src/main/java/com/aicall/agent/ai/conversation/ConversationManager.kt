@@ -79,8 +79,9 @@ class ConversationManager(
                 preferredLanguage = preferredLanguage
             )
 
-            recordTurn("AI", introResponse.spokenText)
-            speechSynthesizer.speak(introResponse.spokenText)
+            val sanitizedIntro = policyEnforcer.sanitizeOutgoingSpeech(introResponse.spokenText)
+            recordTurn("AI", sanitizedIntro)
+            speechSynthesizer.speak(sanitizedIntro)
             speechRecognizer.startListening()
         }
     }
@@ -92,8 +93,8 @@ class ConversationManager(
     ) {
         if (!_conversationState.value.isActive) return
 
-        // 1. Validate caller utterance against deterministic security policy
-        when (val policyCheck = policyEnforcer.validateCallerUtterance(callerText)) {
+        // 1. Validate caller utterance against deterministic security policy with cross-turn context
+        when (val policyCheck = policyEnforcer.validateCallerUtterance(callerText, _conversationState.value.turns)) {
             is PolicyValidationResult.Blocked -> {
                 recordTurn("Caller", callerText)
                 val blockMessage = "I cannot process this request due to security policies."
@@ -127,13 +128,14 @@ class ConversationManager(
                 preferredLanguage = preferredLanguage
             )
 
-            // Validate proposed agent output
+            // Validate and sanitize proposed agent output
             val outputCheck = policyEnforcer.validateProposedAgentResponse(response.spokenText)
-            val finalText = if (outputCheck is PolicyValidationResult.Allowed) {
+            val candidateText = if (outputCheck is PolicyValidationResult.Allowed) {
                 response.spokenText
             } else {
                 "I am unable to provide that information."
             }
+            val finalText = policyEnforcer.sanitizeOutgoingSpeech(candidateText)
 
             recordTurn("AI", finalText)
             speechSynthesizer.speak(finalText) {
@@ -221,9 +223,18 @@ class ConversationManager(
     }
 
     private fun extractClaimedName(transcript: String): String? {
-        val nameRegex = Regex("(?:i am|this is|my name is|speaking is)\\s+([a-zA-Z]+)", RegexOption.IGNORE_CASE)
+        val nameRegex = Regex("(?:i am|this is|my name is|speaking is)\\s+([a-zA-Z]{2,30})", RegexOption.IGNORE_CASE)
         val match = nameRegex.find(transcript)
-        return match?.groupValues?.getOrNull(1)?.replaceFirstChar { it.uppercase() }
+        val candidate = match?.groupValues?.getOrNull(1)?.trim() ?: return null
+
+        val forbiddenTokens = setOf(
+            "system", "admin", "administrator", "root", "developer", "prompt",
+            "assistant", "ai", "bot", "override", "instruction", "mode", "user"
+        )
+        if (forbiddenTokens.contains(candidate.lowercase())) {
+            return null
+        }
+        return candidate.replaceFirstChar { it.uppercase() }
     }
 }
 

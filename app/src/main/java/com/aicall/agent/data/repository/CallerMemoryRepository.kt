@@ -54,15 +54,21 @@ class CallerMemoryRepository(
     ) {
         val normalized = PhoneNumberUtils.normalize(phoneNumber)
         val existing = callerProfileDao.getProfile(normalized) ?: callerProfileDao.getProfile(phoneNumber)
-        
+
+        val sanitizedClaim = claimedName?.trim()
+            ?.replace(Regex("[^a-zA-Z\\s]"), "")
+            ?.take(40)
+            ?.ifBlank { null }
+
+        val cleanSummary = memorySummary.trim().replace(Regex("""[<>{}\r]"""), " ").take(300)
         val updatedSummary = if (existing != null && existing.memorySummary.isNotBlank()) {
-            "${existing.memorySummary}\n---\n$memorySummary"
+            "${existing.memorySummary.takeLast(600)}\n---\n$cleanSummary"
         } else {
-            memorySummary
-        }
+            cleanSummary
+        }.take(1000)
 
         val updatedUnresolved = when {
-            !unresolvedRequest.isNullOrBlank() -> unresolvedRequest
+            !unresolvedRequest.isNullOrBlank() -> unresolvedRequest.trim().replace(Regex("""[<>{}\r\n]"""), " ").take(150)
             existing != null -> existing.unresolvedRequests
             else -> ""
         }
@@ -71,10 +77,10 @@ class CallerMemoryRepository(
         val updated = if (existing != null) {
             existing.copy(
                 contactName = contactName ?: existing.contactName,
-                claimedName = claimedName ?: existing.claimedName,
+                claimedName = sanitizedClaim ?: existing.claimedName,
                 isVerified = if (isContactMatch) true else existing.isVerified,
                 verificationMethod = if (isContactMatch) "Device Contacts Match" else existing.verificationMethod,
-                trustScore = if (isContactMatch) 0.85f else existing.trustScore,
+                trustScore = if (isContactMatch) 0.85f else minOf(existing.trustScore, 0.40f), // Trust never auto-inflates on repeated calls
                 category = category,
                 totalCalls = existing.totalCalls + 1,
                 lastInteractionTime = System.currentTimeMillis(),
@@ -85,8 +91,8 @@ class CallerMemoryRepository(
             CallerProfile(
                 phoneNumber = normalized,
                 contactName = contactName,
-                claimedName = claimedName,
-                isVerified = isContactMatch, // Only device contacts are automatically verified
+                claimedName = sanitizedClaim,
+                isVerified = isContactMatch, // Only device contacts receive high initial trust
                 verificationMethod = if (isContactMatch) "Device Contacts Match" else "Unverified Caller Claim",
                 category = category,
                 trustScore = if (isContactMatch) 0.85f else 0.4f,

@@ -158,10 +158,27 @@ interface AuditLogDao {
 }
 
 private fun safeAddColumn(db: SupportSQLiteDatabase, table: String, column: String, columnDef: String) {
+    var columnExists = false
     try {
-        db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $columnDef")
-    } catch (e: Exception) {
-        // Column may already exist
+        val cursor = db.query("PRAGMA table_info(`$table`)")
+        val nameIndex = cursor.getColumnIndex("name")
+        if (nameIndex != -1) {
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex).equals(column, ignoreCase = true)) {
+                    columnExists = true
+                    break
+                }
+            }
+        }
+        cursor.close()
+    } catch (_: Exception) {
+    }
+
+    if (!columnExists) {
+        try {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $columnDef")
+        } catch (_: Exception) {
+        }
     }
 }
 

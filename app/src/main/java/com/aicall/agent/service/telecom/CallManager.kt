@@ -127,7 +127,10 @@ class CallManager private constructor() {
     }
 
     fun answerCallDirectly() {
-        activeTelecomCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
+        val call = activeTelecomCall ?: return
+        if (call.state == Call.STATE_RINGING) {
+            call.answer(VideoProfile.STATE_AUDIO_ONLY)
+        }
         _callStateFlow.value = _callStateFlow.value.copy(
             callState = AppCallState.ACTIVE_HUMAN,
             isAiHandling = false
@@ -135,7 +138,10 @@ class CallManager private constructor() {
     }
 
     fun sendToAiAgent() {
-        activeTelecomCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
+        val call = activeTelecomCall ?: return
+        if (call.state == Call.STATE_RINGING) {
+            call.answer(VideoProfile.STATE_AUDIO_ONLY)
+        }
         _callStateFlow.value = _callStateFlow.value.copy(
             callState = AppCallState.ACTIVE_AI_AGENT,
             isAiHandling = true
@@ -150,7 +156,12 @@ class CallManager private constructor() {
     }
 
     fun declineCall() {
-        activeTelecomCall?.reject(false, null)
+        val call = activeTelecomCall ?: return
+        if (call.state == Call.STATE_RINGING) {
+            call.reject(false, null)
+        } else {
+            call.disconnect()
+        }
     }
 
     fun hangUpCall() {
