@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.aicall.agent.AiCallApp
@@ -15,10 +16,7 @@ import com.aicall.agent.ui.dashboard.DashboardScreen
 import com.aicall.agent.ui.diagnostics.DiagnosticsScreen
 import com.aicall.agent.ui.dialer.DialerScreen
 import com.aicall.agent.ui.settings.SettingsScreen
-import com.aicall.agent.ui.theme.BackgroundDark
-import com.aicall.agent.ui.theme.CyanAccent
-import com.aicall.agent.ui.theme.SurfaceDark
-import com.aicall.agent.ui.theme.TextMuted
+import com.aicall.agent.ui.theme.*
 
 @Composable
 fun AppNavigation(
@@ -44,13 +42,13 @@ fun AppNavigation(
             if (selectedDetailCall == null) {
                 NavigationBar(
                     containerColor = SurfaceDark,
-                    tonalElevation = 8.dp
+                    tonalElevation = 6.dp
                 ) {
                     screens.forEach { screen ->
                         val isSelected = currentRoute == screen.route
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
+                            label = { Text(screen.title, fontSize = 11.sp) },
                             selected = isSelected,
                             onClick = {
                                 navController.navigate(screen.route) {
@@ -62,11 +60,11 @@ fun AppNavigation(
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = CyanAccent,
-                                selectedTextColor = CyanAccent,
+                                selectedIconColor = AccentPurple,
+                                selectedTextColor = AccentPurple,
                                 unselectedIconColor = TextMuted,
                                 unselectedTextColor = TextMuted,
-                                indicatorColor = BackgroundDark
+                                indicatorColor = AccentPurple.copy(alpha = 0.18f)
                             )
                         )
                     }

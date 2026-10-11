@@ -2,7 +2,6 @@ package com.aicall.agent.ui.diagnostics
 
 import android.app.NotificationManager
 import android.content.Context
-import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.compose.foundation.background
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,11 +20,11 @@ import androidx.compose.ui.unit.sp
 import com.aicall.agent.ui.theme.*
 
 enum class FeasibilityStatus(val label: String, val color: androidx.compose.ui.graphics.Color) {
-    IMPLEMENTED_AND_TESTED("Implemented & Tested", VerifiedGreen),
-    SUPPORTED_BY_API_UNTESTED("API Supported / Ready to Test", CyanAccent),
+    IMPLEMENTED_AND_TESTED("Implemented & Tested", CallAnswerGreen),
+    SUPPORTED_BY_API_UNTESTED("API Ready to Test", TealAccent),
     PARTIALLY_SUPPORTED("Partially Supported", WarningAmber),
-    UNSUPPORTED_ON_DEVICE("Unsupported on Configuration", UrgentRed),
-    REQUIRES_INVESTIGATION("Requires Investigation", VioletAgent)
+    UNSUPPORTED_ON_DEVICE("Unsupported on Config", DangerRed),
+    REQUIRES_INVESTIGATION("Under Investigation", AccentPurple)
 }
 
 data class TelephonyFeasibilityItem(
@@ -113,7 +110,7 @@ fun DiagnosticsScreen() {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(DarkBackground)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -121,13 +118,15 @@ fun DiagnosticsScreen() {
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Text(
                     text = "Telephony Feasibility & Diagnostics",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkTextPrimary
                 )
                 Text(
                     text = "Real-device capability matrix and system telemetry verification",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    fontSize = 13.sp,
+                    color = DarkTextSecondary,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
@@ -136,26 +135,30 @@ fun DiagnosticsScreen() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Device Telemetry Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = CyanAccent
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TealAccent
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     TelemetryRow(
                         label = "Android Version",
                         value = "API ${Build.VERSION.SDK_INT} (Target Android 13)"
                     )
+                    HorizontalDivider(color = DarkElevatedSurface, modifier = Modifier.padding(vertical = 8.dp))
                     TelemetryRow(
-                        label = "Battery Optimization Whitelist",
+                        label = "Battery Whitelist",
                         value = if (isIgnoringBatteryOptimizations) "Whitelisted (Optimal)" else "Restricted (May throttle)"
                     )
+                    HorizontalDivider(color = DarkElevatedSurface, modifier = Modifier.padding(vertical = 8.dp))
                     TelemetryRow(
-                        label = "Do Not Disturb Override Access",
+                        label = "DND Override Access",
                         value = if (hasDndPolicyAccess) "Granted" else "Action Required"
                     )
                 }
@@ -166,8 +169,9 @@ fun DiagnosticsScreen() {
         item {
             Text(
                 text = "Telecom Capabilities Gate",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = DarkTextPrimary
             )
         }
 
@@ -182,13 +186,12 @@ fun DiagnosticsScreen() {
 @Composable
 fun TelemetryRow(label: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, color = TextSecondary, fontSize = 13.sp)
-        Text(text = value, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(text = label, color = DarkTextSecondary, fontSize = 13.sp)
+        Text(text = value, color = DarkTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -196,10 +199,10 @@ fun TelemetryRow(label: String, value: String) {
 fun FeasibilityCard(item: TelephonyFeasibilityItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -207,14 +210,16 @@ fun FeasibilityCard(item: TelephonyFeasibilityItem) {
             ) {
                 Text(
                     text = item.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = SurfaceCardElevated
+                    shape = RoundedCornerShape(8.dp),
+                    color = item.status.color.copy(alpha = 0.18f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, item.status.color.copy(alpha = 0.4f))
                 ) {
                     Text(
                         text = item.status.label,
@@ -226,21 +231,26 @@ fun FeasibilityCard(item: TelephonyFeasibilityItem) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = item.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
-                fontSize = 13.sp
+                color = DarkTextSecondary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Implementation: ${item.technicalDetails}",
-                style = MaterialTheme.typography.labelSmall,
-                color = TextMuted,
-                fontSize = 11.sp
-            )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = DarkElevatedSurface
+            ) {
+                Text(
+                    text = "Technical: ${item.technicalDetails}",
+                    color = DarkTextSecondary.copy(alpha = 0.8f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }

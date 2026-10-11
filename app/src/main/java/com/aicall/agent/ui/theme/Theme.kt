@@ -10,12 +10,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = CyanAccent,
+    primary = AccentPurple,
     onPrimary = BackgroundDark,
     primaryContainer = SurfaceCardElevated,
-    onPrimaryContainer = CyanAccent,
-    secondary = VioletAgent,
-    onSecondary = TextPrimary,
+    onPrimaryContainer = AccentPurple,
+    secondary = AccentTeal,
+    onSecondary = BackgroundDark,
     background = BackgroundDark,
     onBackground = TextPrimary,
     surface = SurfaceDark,

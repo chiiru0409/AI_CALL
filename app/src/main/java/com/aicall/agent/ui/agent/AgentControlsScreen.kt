@@ -3,6 +3,7 @@ package com.aicall.agent.ui.agent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aicall.agent.data.model.AgentRule
-import com.aicall.agent.data.model.AgentSchedule
 import com.aicall.agent.data.model.RuleActionType
 import com.aicall.agent.data.model.RuleConditionType
 import com.aicall.agent.data.repository.AgentConfigRepository
@@ -38,13 +38,10 @@ fun AgentControlsScreen(
     var editingKnowledge by remember { mutableStateOf(false) }
     var knowledgeText by remember(knowledgeBase) { mutableStateOf(knowledgeBase) }
 
-    var showAddRuleDialog by remember { mutableStateOf(false) }
-    var showAddScheduleDialog by remember { mutableStateOf(false) }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(DarkBackground)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -52,13 +49,15 @@ fun AgentControlsScreen(
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Text(
                     text = "AI Agent Controls & Rules",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkTextPrimary
                 )
                 Text(
                     text = "Configure autonomous call-handling modes, schedules, and safety policies",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    fontSize = 13.sp,
+                    color = DarkTextSecondary,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
@@ -67,10 +66,11 @@ fun AgentControlsScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -79,25 +79,31 @@ fun AgentControlsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Autonomous Call Agent",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DarkTextPrimary
                             )
                             Text(
                                 text = if (isAgentEnabled) "Active: Ready to converse with eligible callers" else "Paused: Calls ring normally",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isAgentEnabled) CyanAccent else TextMuted,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                color = if (isAgentEnabled) AccentPurple else DarkTextSecondary,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
                         Switch(
                             checked = isAgentEnabled,
                             onCheckedChange = { configRepository.setAgentMode(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = CyanAccent, checkedTrackColor = VioletAgentDark)
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ColorTokens.White,
+                                checkedTrackColor = AccentPurple,
+                                uncheckedThumbColor = DarkTextSecondary,
+                                uncheckedTrackColor = DarkElevatedSurface
+                            )
                         )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = SurfaceCardBorder)
+                    HorizontalDivider(color = DarkElevatedSurface)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
@@ -108,20 +114,26 @@ fun AgentControlsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Scheduled Operating Mode",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DarkTextPrimary
                             )
                             Text(
                                 text = "Only activate AI Agent during specified time windows",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                color = DarkTextSecondary,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
                         Switch(
                             checked = isScheduleMode,
                             onCheckedChange = { configRepository.setScheduleMode(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = VioletAgent, checkedTrackColor = SurfaceCardElevated)
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ColorTokens.White,
+                                checkedTrackColor = TealAccent,
+                                uncheckedThumbColor = DarkTextSecondary,
+                                uncheckedTrackColor = DarkElevatedSurface
+                            )
                         )
                     }
                 }
@@ -132,31 +144,44 @@ fun AgentControlsScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "Voice Agent Language",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = CyanAccent
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DarkTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Text(
+                        text = "Select primary language and code-switching profile for conversation",
+                        fontSize = 12.sp,
+                        color = DarkTextSecondary,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        listOf("Telugu-English", "English", "Telugu", "Hindi").forEach { lang ->
+                        items(listOf("Telugu-English", "English", "Telugu", "Hindi")) { lang ->
                             val isSelected = preferredLanguage == lang
-                            FilterChip(
-                                selected = isSelected,
+                            Surface(
                                 onClick = { configRepository.setPreferredLanguage(lang) },
-                                label = { Text(lang, fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = VioletAgent,
-                                    selectedLabelColor = TextPrimary
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isSelected) AccentPurple.copy(alpha = 0.2f) else DarkElevatedSurface,
+                                border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, AccentPurple) else null
+                            ) {
+                                Text(
+                                    text = lang,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) AccentPurple else DarkTextPrimary,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -167,10 +192,11 @@ fun AgentControlsScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -178,8 +204,9 @@ fun AgentControlsScreen(
                     ) {
                         Text(
                             text = "Approved User Knowledge",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = CyanAccent
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentPurple
                         )
                         IconButton(onClick = {
                             if (editingKnowledge) {
@@ -190,17 +217,16 @@ fun AgentControlsScreen(
                             Icon(
                                 imageVector = if (editingKnowledge) Icons.Default.Check else Icons.Default.Edit,
                                 contentDescription = "Edit Knowledge",
-                                tint = CyanAccent
+                                tint = AccentPurple
                             )
                         }
                     }
                     Text(
                         text = "The AI Agent is strictly restricted to information approved here. Secrets, OTPs, and passwords are unconditionally blocked.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        color = DarkTextSecondary,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
 
                     if (editingKnowledge) {
                         OutlinedTextField(
@@ -209,16 +235,28 @@ fun AgentControlsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 3,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CyanAccent,
-                                unfocusedBorderColor = SurfaceCardBorder
-                            )
+                                focusedBorderColor = AccentPurple,
+                                unfocusedBorderColor = DarkElevatedSurface,
+                                focusedContainerColor = DarkElevatedSurface,
+                                unfocusedContainerColor = DarkElevatedSurface,
+                                focusedTextColor = DarkTextPrimary,
+                                unfocusedTextColor = DarkTextPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
                     } else {
-                        Text(
-                            text = knowledgeBase.ifBlank { "No knowledge base configured yet." },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = DarkElevatedSurface,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = knowledgeBase.ifBlank { "No knowledge base configured yet." },
+                                fontSize = 13.sp,
+                                color = DarkTextPrimary,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -233,8 +271,9 @@ fun AgentControlsScreen(
             ) {
                 Text(
                     text = "Handling Rules (${rules.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextPrimary
                 )
                 Button(
                     onClick = {
@@ -249,22 +288,35 @@ fun AgentControlsScreen(
                             )
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceCardElevated)
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkElevatedSurface),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Sample Rule", fontSize = 12.sp)
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = DarkTextPrimary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Sample Rule", fontSize = 12.sp, color = DarkTextPrimary)
                 }
             }
         }
 
         if (rules.isEmpty()) {
             item {
-                Text(
-                    text = "No custom handling rules configured yet. Standard AI policy applies.",
-                    color = TextMuted,
-                    fontSize = 13.sp
-                )
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = DarkSurface,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "No custom handling rules configured yet. Standard AI policy applies.",
+                        color = DarkTextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         } else {
             items(rules) { rule ->
@@ -283,33 +335,35 @@ fun AgentControlsScreen(
 fun RuleCard(rule: AgentRule, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = rule.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = DarkTextPrimary
                 )
                 Text(
                     text = "IF: ${rule.conditionType.name} (${rule.matchValue}) → THEN: ${rule.actionType.name}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = CyanAccent
+                    fontSize = 11.sp,
+                    color = AccentPurple,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
             IconButton(onClick = onDelete) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Default.DeleteOutline,
                     contentDescription = "Delete Rule",
-                    tint = TextMuted
+                    tint = DangerRed.copy(alpha = 0.8f)
                 )
             }
         }

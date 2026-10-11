@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,13 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aicall.agent.data.model.CallRecord
 import com.aicall.agent.data.model.UrgencyLevel
 import com.aicall.agent.data.repository.CallRepository
+import com.aicall.agent.ui.components.ContactAvatar
 import com.aicall.agent.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -37,21 +36,36 @@ fun CallDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Call Intelligence Record", color = TextPrimary) },
+                title = {
+                    Text(
+                        text = "Call Intelligence Record",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DarkTextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = DarkTextPrimary
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Record", tint = TextMuted)
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Delete Record",
+                            tint = DangerRed.copy(alpha = 0.8f)
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
             )
         },
-        containerColor = BackgroundDark
+        containerColor = DarkBackground
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -60,57 +74,68 @@ fun CallDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header Card
+            // Header Contact Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            ContactAvatar(
+                                name = call.callerName,
+                                phoneNumber = call.callerNumber,
+                                size = 56.dp,
+                                showPhoneBadge = false
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = call.callerName ?: call.callerNumber,
-                                    fontSize = 22.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = DarkTextPrimary
                                 )
                                 Text(
                                     text = call.callerNumber,
                                     fontSize = 14.sp,
-                                    color = TextSecondary
+                                    color = DarkTextSecondary,
+                                    modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (call.urgencyLevel == UrgencyLevel.EMERGENCY || call.urgencyLevel == UrgencyLevel.HIGH) UrgentRedBg else SurfaceCardElevated
-                            ) {
-                                Text(
-                                    text = call.urgencyLevel.name,
-                                    color = if (call.urgencyLevel == UrgencyLevel.EMERGENCY || call.urgencyLevel == UrgencyLevel.HIGH) UrgentRed else CyanAccent,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
+                            if (call.urgencyLevel == UrgencyLevel.EMERGENCY || call.urgencyLevel == UrgencyLevel.HIGH) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = DangerRed.copy(alpha = 0.2f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.5f))
+                                ) {
+                                    Text(
+                                        text = call.urgencyLevel.name,
+                                        color = DangerRed,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = SurfaceCardBorder)
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = DarkElevatedSurface)
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            InfoItem(label = "Category", value = call.category.name)
-                            InfoItem(label = "Handling", value = call.handlingStatus.name.replace('_', ' '))
-                            InfoItem(label = "Duration", value = "${call.durationSeconds}s")
+                            DetailInfoItem(label = "Category", value = call.category.name)
+                            DetailInfoItem(label = "Handling", value = call.handlingStatus.name.replace('_', ' '))
+                            DetailInfoItem(label = "Duration", value = "${call.durationSeconds}s")
                         }
                     }
                 }
@@ -120,20 +145,24 @@ fun CallDetailScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "AI Intent & Summary",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = CyanAccent
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentPurple
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = call.outcomeSummary.ifBlank { if (call.intent.isNotBlank()) "Intent: ${call.intent}" else "No summary available for this call." },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextPrimary
+                            text = call.outcomeSummary.ifBlank {
+                                if (call.intent.isNotBlank()) "Intent: ${call.intent}" else "No summary available for this call."
+                            },
+                            fontSize = 14.sp,
+                            color = DarkTextPrimary,
+                            lineHeight = 20.sp
                         )
                     }
                 }
@@ -144,8 +173,9 @@ fun CallDetailScreen(
                 item {
                     Text(
                         text = "Follow-Up Tasks (${actionItems.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = CyanAccent
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DarkTextPrimary
                     )
                 }
 
@@ -163,29 +193,36 @@ fun CallDetailScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Full Conversation Transcript",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = CyanAccent
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TealAccent
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         if (call.transcript.isBlank()) {
                             Text(
-                                text = "Transcript unavailable (Human-to-human call or audio not captured).",
-                                color = TextMuted,
+                                text = "Transcript unavailable (Direct cellular call or speech audio not intercepted).",
+                                color = DarkTextSecondary,
                                 fontSize = 13.sp
                             )
                         } else {
-                            Text(
-                                text = call.transcript,
-                                color = TextPrimary,
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = DarkElevatedSurface
+                            ) {
+                                Text(
+                                    text = call.transcript,
+                                    color = DarkTextPrimary,
+                                    fontSize = 13.sp,
+                                    lineHeight = 19.sp,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -195,35 +232,39 @@ fun CallDetailScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Security & Verification Posture",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = CyanAccent
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = DarkTextPrimary
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "• Verification Status: ${call.verificationStatus}",
-                            color = TextSecondary,
+                            color = DarkTextSecondary,
                             fontSize = 13.sp
                         )
                         Text(
                             text = "• Evaluated Risk Level: ${call.riskLevel.name}",
-                            color = TextSecondary,
-                            fontSize = 13.sp
+                            color = DarkTextSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                         Text(
                             text = "• Location Data: ${call.callerLocation}",
-                            color = TextSecondary,
-                            fontSize = 13.sp
+                            color = DarkTextSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                         Text(
                             text = "• Recording Facility: ${call.recordingStatus}",
-                            color = TextSecondary,
-                            fontSize = 13.sp
+                            color = DarkTextSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -236,8 +277,16 @@ fun CallDetailScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Call Record?") },
-            text = { Text("This will remove this call record, transcript, and associated follow-up tasks from local storage.") },
+            containerColor = DarkSurface,
+            title = {
+                Text("Delete Call Record?", color = DarkTextPrimary, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "This will remove this call record, transcript, and associated follow-up tasks from local storage.",
+                    color = DarkTextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -248,12 +297,12 @@ fun CallDetailScreen(
                         showDeleteConfirm = false
                     }
                 ) {
-                    Text("Delete", color = UrgentRed, fontWeight = FontWeight.Bold)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = DarkTextSecondary)
                 }
             }
         )
@@ -261,10 +310,15 @@ fun CallDetailScreen(
 }
 
 @Composable
-fun InfoItem(label: String, value: String) {
+fun DetailInfoItem(label: String, value: String) {
     Column {
-        Text(text = label, color = TextMuted, fontSize = 11.sp)
-        Text(text = value, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = label, color = DarkTextSecondary, fontSize = 11.sp)
+        Text(
+            text = value,
+            color = DarkTextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }
-

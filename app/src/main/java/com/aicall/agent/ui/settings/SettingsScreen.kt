@@ -46,7 +46,7 @@ fun SettingsScreen() {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(DarkBackground)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -54,13 +54,15 @@ fun SettingsScreen() {
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Text(
                     text = "Application Settings",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkTextPrimary
                 )
                 Text(
                     text = "Permissions, security policies, data retention, and privacy controls",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    fontSize = 13.sp,
+                    color = DarkTextSecondary,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
@@ -71,10 +73,11 @@ fun SettingsScreen() {
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,14 +86,15 @@ fun SettingsScreen() {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Default Phone App Role",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DarkTextPrimary
                             )
                             Text(
                                 text = if (isDefaultDialer) "Enabled: App acts as primary cellular dialer" else "Disabled: Click to grant role",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isDefaultDialer) VerifiedGreen else WarningAmber,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                color = if (isDefaultDialer) CallAnswerGreen else WarningAmber,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
                         if (!isDefaultDialer && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -99,9 +103,10 @@ fun SettingsScreen() {
                                     val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_DIALER)
                                     if (intent != null) roleLauncher.launch(intent)
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = CyanAccent)
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Set Default", color = BackgroundDark, fontWeight = FontWeight.Bold)
+                                Text("Set Default", color = DarkTextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -115,18 +120,17 @@ fun SettingsScreen() {
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     SettingsRow(
                         icon = Icons.Default.Lock,
                         title = "Android Keystore Encryption",
-                        subtitle = "Local records and API keys protected using hardware-backed keystore"
+                        subtitle = "Local records and credentials protected using hardware-backed keystore"
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    HorizontalDivider(color = SurfaceCardBorder)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(color = DarkElevatedSurface, modifier = Modifier.padding(vertical = 12.dp))
                     SettingsRow(
                         icon = Icons.Default.Security,
                         title = "Deterministic Policy Enforcement",
@@ -136,16 +140,17 @@ fun SettingsScreen() {
             }
         }
 
-        // Notifications & System
+        // Notifications & Power
         item {
             SettingsCategoryHeader(title = "Notifications & Power")
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     SettingsActionRow(
                         icon = Icons.Default.Notifications,
                         title = "Notification Channels",
@@ -169,10 +174,11 @@ fun SettingsScreen() {
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     SettingsActionRow(
                         icon = Icons.Default.DeleteSweep,
                         title = "Clear All Call Intelligence History",
@@ -190,8 +196,16 @@ fun SettingsScreen() {
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear All Call Records?") },
-            text = { Text("This will permanently delete all stored call intelligence records, transcripts, and action items.") },
+            containerColor = DarkSurface,
+            title = {
+                Text("Clear All Call Records?", color = DarkTextPrimary, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "This will permanently delete all stored call intelligence records, transcripts, and action items from this device.",
+                    color = DarkTextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -201,12 +215,12 @@ fun SettingsScreen() {
                         showClearDialog = false
                     }
                 ) {
-                    Text("Clear All", color = UrgentRed, fontWeight = FontWeight.Bold)
+                    Text("Clear All", color = DangerRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = DarkTextSecondary)
                 }
             }
         )
@@ -217,19 +231,27 @@ fun SettingsScreen() {
 fun SettingsCategoryHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = CyanAccent
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = TealAccent
     )
 }
 
 @Composable
 fun SettingsRow(icon: ImageVector, title: String, subtitle: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = null, tint = CyanAccent, modifier = Modifier.size(22.dp))
-        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(DarkElevatedSurface, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = AccentPurple, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.width(14.dp))
         Column {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontSize = 14.sp)
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, fontSize = 12.sp)
+            Text(text = title, color = DarkTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(text = subtitle, color = DarkTextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
@@ -251,23 +273,38 @@ fun SettingsActionRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isDestructive) UrgentRed else CyanAccent,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        if (isDestructive) DangerRed.copy(alpha = 0.15f) else DarkElevatedSurface,
+                        RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isDestructive) DangerRed else TealAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (isDestructive) UrgentRed else TextPrimary,
-                    fontSize = 14.sp
+                    color = if (isDestructive) DangerRed else DarkTextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
-                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, fontSize = 12.sp)
+                Text(
+                    text = subtitle,
+                    color = DarkTextSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextMuted)
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = DarkTextSecondary.copy(alpha = 0.5f))
     }
 }
