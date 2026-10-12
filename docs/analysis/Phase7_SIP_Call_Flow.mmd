@@ -1,0 +1,80 @@
+%% ==============================================================================
+%% AI_CALL — Phase 7: Self-Hosted SIP Bridge Call Flow Diagram
+%% Theoretical End-to-End Architecture & Local LAN Feasibility Prototype
+%% Distinguishes Cellular Ingress, Telephony Bridge, Local AI Pipeline, and Handset Sync
+%% Unverified/Missing Cellular Ingress Links Explicitly Highlighted
+%% ==============================================================================
+
+sequenceDiagram
+    autonumber
+
+    actor Caller as 👤 Remote Caller (Cellular Phone)
+    participant CarrierNetwork as 📡 Public Cellular Network<br/>(Airtel / Jio / Vi Cell Tower)
+    participant UserSIM as 📱 User Handset Modem<br/>(Primary SIM in iQOO Z9)
+    participant AndroidApp as 📲 AI_CALL Android App<br/>(CallScreeningService & UI)
+    participant IngressGateway as ⚠️ PSTN-to-SIP Gateway<br/>(MISSING FREE COMPONENT / DID)
+    participant LocalSIPServer as 🖥️ Home PC SIP / PBX Engine<br/>(Asterisk / Python Bridge on PC)
+    participant LocalAIEngine as 🧠 Local AI Pipeline<br/>(Whisper + Ollama + Piper on PC)
+    participant LocalLANSync as 🔄 Local LAN Sync<br/>(HTTP / WebSocket on Wi-Fi)
+
+    Note over Caller,LocalAIEngine: CRITICAL REALITY: Cellular Carrier can only forward to an E.164 phone number, NOT a private PC IP!
+
+    %% -------------------------------------------------------------
+    %% PHASE 1: CELLULAR SIGNALING & REJECTION ON HANDSET
+    %% -------------------------------------------------------------
+    rect rgb(240, 245, 255)
+    Note over Caller,AndroidApp: Phase 1: Incoming Call Screening & Rejection
+    Caller->>CarrierNetwork: [SS7/VoLTE] Dials User Primary Mobile Number
+    CarrierNetwork->>UserSIM: [Cellular Paging] Incoming Call Arrival
+    UserSIM->>AndroidApp: [Telecom Framework] onScreenCall(Call.Details)
+    Note over AndroidApp: AI_CALL ScreeningService:<br/>1. Check Contacts (Allow known callers)<br/>2. If Unknown Caller: Issue CallResponse(reject=true)
+    AndroidApp->>UserSIM: [Telecom API] respondToCall(disallowCall=true, rejectCall=true)
+    UserSIM->>CarrierNetwork: [VoLTE ISUP] User-Busy / Decline Signal
+    Note over UserSIM,AndroidApp: Phone stops ringing immediately.<br/>Triggering carrier-level Conditional Call Forwarding (*67*).
+    end
+
+    %% -------------------------------------------------------------
+    %% PHASE 2: CARRIER FORWARDING & INGRESS BOTTLENECK
+    %% -------------------------------------------------------------
+    rect rgb(255, 248, 240)
+    Note over CarrierNetwork,LocalSIPServer: Phase 2: Carrier Forwarding & Telephony Ingress
+    Note over CarrierNetwork: Carrier detects 'Busy' state.<br/>Executes *67* Forwarding Rule.<br/>Destination MUST be an E.164 PSTN Phone Number!
+    
+    alt Missing Gateway Reality (Why Pure Free Cellular Ingress Fails)
+        CarrierNetwork--xLocalSIPServer: [BLOCKED] Carrier CANNOT forward to private IP or SIP URI!
+    else With PSTN-to-SIP Ingress Gateway (e.g. DID Provider or Local GSM Dongle)
+        CarrierNetwork->>IngressGateway: [PSTN Trunk] Forwards call to Gateway E.164 DID
+        IngressGateway->>LocalSIPServer: [SIP INVITE over Internet / NAT] Codec: G.711 / Opus
+        LocalSIPServer->>IngressGateway: [SIP 200 OK] Session Established
+        IngressGateway->>CarrierNetwork: [ISUP Answer] Call Connected
+    end
+    end
+
+    %% -------------------------------------------------------------
+    %% PHASE 3: BIDIRECTIONAL AUDIO & LOCAL AI PROCESSING
+    %% -------------------------------------------------------------
+    rect rgb(240, 255, 245)
+    Note over Caller,LocalAIEngine: Phase 3: Digital Two-Way Audio & Local Intelligence
+    Caller=>>CarrierNetwork: == Caller Voice Speech (VoLTE/PSTN) ==
+    CarrierNetwork=>>IngressGateway: == Caller Voice Speech (PSTN Trunk) ==
+    IngressGateway=>>LocalSIPServer: == Real-Time RTP Audio Stream (UDP / PCM) ==
+    LocalSIPServer=>>LocalAIEngine: == Raw PCM Audio Chunks (16kHz 16-bit Mono) ==
+
+    Note over LocalAIEngine: Local PC Intelligence Stack (100% Free & Offline):<br/>1. VAD: Silero / Energy endpointing (~200ms)<br/>2. ASR: faster-whisper base.en (~300ms)<br/>3. LLM: Ollama qwen2.5:3b (~400ms)<br/>4. TTS: Piper TTS (~150ms)
+
+    LocalAIEngine-->>LocalSIPServer: -- Synthesized Assistant Speech (PCM Buffer) --
+    LocalSIPServer-->>IngressGateway: -- Return RTP Audio Stream (UDP) --
+    IngressGateway-->>CarrierNetwork: -- Telecom Voice Trunk --
+    CarrierNetwork-->>Caller: -- Cellular Downlink (Heard by Caller) --
+    Note over Caller: Remote caller hears natural English response generated locally on PC
+    end
+
+    %% -------------------------------------------------------------
+    %% PHASE 4: LOCAL APP SYNCHRONIZATION OVER WI-FI
+    %% -------------------------------------------------------------
+    rect rgb(255, 240, 255)
+    Note over LocalSIPServer,AndroidApp: Phase 4: In-Home LAN Synchronization
+    LocalAIEngine->>LocalSIPServer: Push tokenized transcript & caller intent
+    LocalSIPServer->>AndroidApp: [Local WebSocket / HTTP via Wi-Fi] Stream TranscriptItem & CallDetails
+    Note over AndroidApp: AI_CALL displays live floating overlay on phone screen<br/>Persists call record, duration, and summary to Room DB v4
+    end

@@ -25,7 +25,7 @@ class AgentConfigRepository(
     private val _isScheduleModeActive = MutableStateFlow(prefs.getBoolean("key_schedule_mode_active", false))
     val isScheduleModeActive: StateFlow<Boolean> = _isScheduleModeActive.asStateFlow()
 
-    private val _preferredLanguage = MutableStateFlow(prefs.getString("key_preferred_language", "Telugu-English") ?: "Telugu-English")
+    private val _preferredLanguage = MutableStateFlow(prefs.getString("key_preferred_language", "English") ?: "English")
     val preferredLanguage: StateFlow<String> = _preferredLanguage.asStateFlow()
 
     private val _approvedKnowledgeBase = MutableStateFlow(

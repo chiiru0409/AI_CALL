@@ -16,6 +16,7 @@ import com.aicall.agent.data.repository.AgentConfigRepository
 import com.aicall.agent.data.repository.CallRepository
 import com.aicall.agent.data.repository.CallerMemoryRepository
 import com.aicall.agent.service.telecom.CallManager
+import kotlinx.coroutines.*
 
 class AiCallApp : Application() {
 
@@ -31,6 +32,9 @@ class AiCallApp : Application() {
     lateinit var agentConfigRepository: AgentConfigRepository
         private set
 
+    lateinit var knowledgeRepository: com.aicall.agent.data.repository.KnowledgeRepository
+        private set
+
     lateinit var conversationManager: ConversationManager
         private set
 
@@ -43,6 +47,11 @@ class AiCallApp : Application() {
         callRepository = CallRepository(database.callRecordDao(), database.actionItemDao(), database.auditLogDao())
         callerMemoryRepository = CallerMemoryRepository(database.callerProfileDao())
         agentConfigRepository = AgentConfigRepository(this, database.agentRuleDao(), database.agentScheduleDao())
+        knowledgeRepository = com.aicall.agent.data.repository.KnowledgeRepository(database.knowledgeDocumentDao())
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            knowledgeRepository.seedInitialKnowledgeIfEmpty(agentConfigRepository.approvedKnowledgeBase.value)
+        }
 
         // 2. Initialize AI Engines & Policy Layer
         val whisperModelFile = java.io.File("/data/local/tmp/aicall/models/ggml-base-q8_0.bin")
@@ -62,7 +71,21 @@ class AiCallApp : Application() {
             androidSpeechEngine = androidEngine
         )
         val speechSyn = AndroidTtsEngine(this)
-        val reasoning = RuleBasedReasoningEngine()
+
+        val ragRetriever = com.aicall.agent.ai.rag.LocalRagRetriever(
+            knowledgeDocumentDao = database.knowledgeDocumentDao(),
+            callerProfileDao = database.callerProfileDao(),
+            actionItemDao = database.actionItemDao()
+        )
+
+        val llamaModelFile = java.io.File("/data/local/tmp/aicall/models/tinyllama-1.1b-chat-q4_k_m.gguf")
+        val conversationalEngine = com.aicall.agent.ai.conversation.EnglishConversationalReasoningEngine()
+        val reasoning: com.aicall.agent.ai.conversation.LlmReasoningEngine = if (llamaModelFile.exists()) {
+            com.aicall.agent.ai.conversation.EmbeddedLlamaEngine(llamaModelFile.absolutePath, conversationalEngine)
+        } else {
+            conversationalEngine
+        }
+
         val policy = PolicyEnforcer()
         val assessor = RiskAndUrgencyAssessor()
 
@@ -75,7 +98,8 @@ class AiCallApp : Application() {
             callerMemoryRepository = callerMemoryRepository,
             speechRecognizer = speechRec,
             speechSynthesizer = speechSyn,
-            audioStorageManager = audioStorage
+            audioStorageManager = audioStorage,
+            localRagRetriever = ragRetriever
         )
 
         // 3. Initialize Telecom CallManager

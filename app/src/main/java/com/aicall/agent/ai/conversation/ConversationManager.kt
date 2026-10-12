@@ -34,7 +34,8 @@ class ConversationManager(
     private val callerMemoryRepository: CallerMemoryRepository,
     private val speechRecognizer: SpeechRecognizerEngine,
     private val speechSynthesizer: SpeechSynthesizerEngine,
-    private val audioStorageManager: AudioStorageManager? = null
+    private val audioStorageManager: AudioStorageManager? = null,
+    private val localRagRetriever: com.aicall.agent.ai.rag.LocalRagRetriever? = null
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -43,8 +44,9 @@ class ConversationManager(
 
     private var currentSessionId: String = ""
     private var knowledgeBaseText: String = ""
-    private var preferredLanguage: String = "Telugu-English"
+    private var preferredLanguage: String = "English"
     private var speechCollectionJob: Job? = null
+    private val accumulatedExtractedFacts = mutableListOf<String>()
 
     val voiceStateMachine = VoiceStateMachine(
         callback = object : VoiceStateMachine.StateCallback {
@@ -106,14 +108,23 @@ class ConversationManager(
                 turns = emptyList()
             )
 
+            val isVerified = existingProfile?.isVerified == true || callerName != null
+            val initialFacts = localRagRetriever?.retrieveRelevantFacts(
+                callerNumber = callerNumber,
+                callerName = callerName ?: existingProfile?.contactName,
+                isCallerVerified = isVerified,
+                callerUtterance = ""
+            ) ?: emptyList()
+
             // Generate initial AI transparent introduction turn
-            val introResponse = reasoningEngine.generateTurnResponse(
+            val introResponse = reasoningEngine.generateGroundedTurnResponse(
                 callerNumber = callerNumber,
                 callerName = callerName ?: existingProfile?.contactName,
                 callerMemoryContext = memoryContext,
                 conversationHistory = emptyList(),
                 userApprovedKnowledge = knowledgeBaseText,
-                preferredLanguage = preferredLanguage
+                preferredLanguage = preferredLanguage,
+                retrievedFacts = initialFacts
             )
 
             val sanitizedIntro = policyEnforcer.sanitizeOutgoingSpeech(introResponse.spokenText)
@@ -160,14 +171,28 @@ class ConversationManager(
         coroutineScope.launch {
             val state = _conversationState.value
             val history = state.turns
-            val response = reasoningEngine.generateTurnResponse(
+            val profile = callerMemoryRepository.getProfile(state.callerNumber)
+            val isVerified = state.callerName != null || profile?.isVerified == true
+            val retrievedFacts = localRagRetriever?.retrieveRelevantFacts(
+                callerNumber = state.callerNumber,
+                callerName = state.callerName,
+                isCallerVerified = isVerified,
+                callerUtterance = callerText
+            ) ?: emptyList()
+
+            val response = reasoningEngine.generateGroundedTurnResponse(
                 callerNumber = state.callerNumber,
                 callerName = state.callerName,
                 callerMemoryContext = state.callerMemoryContext,
                 conversationHistory = history,
                 userApprovedKnowledge = knowledgeBaseText,
-                preferredLanguage = preferredLanguage
+                preferredLanguage = preferredLanguage,
+                retrievedFacts = retrievedFacts
             )
+
+            if (response.extractedFacts.isNotEmpty()) {
+                accumulatedExtractedFacts.addAll(response.extractedFacts)
+            }
 
             // Validate and sanitize proposed agent output
             val outputCheck = policyEnforcer.validateProposedAgentResponse(response.spokenText)
@@ -280,7 +305,12 @@ class ConversationManager(
                 transcript = fullTranscript,
                 recordingStatus = recordingStatusText,
                 callerLocation = "Telangana, India (Cell tower approximation)",
-                verificationStatus = if (state.callerName != null) "Saved Address Book Contact (Unverified Caller ID)" else "Unsaved Caller Number (Unverified Caller ID)"
+                verificationStatus = if (state.callerName != null) "Saved Address Book Contact (Unverified Caller ID)" else "Unsaved Caller Number (Unverified Caller ID)",
+                extractedFactsJson = if (accumulatedExtractedFacts.isNotEmpty()) {
+                    accumulatedExtractedFacts.distinct().joinToString(prefix = "[\"", separator = "\",\"", postfix = "\"]") {
+                        it.replace("\"", "\\\"")
+                    }
+                } else "[]"
             )
             callRepository.saveCallRecord(record)
 
@@ -310,6 +340,7 @@ class ConversationManager(
             }
         }
 
+        accumulatedExtractedFacts.clear()
         _conversationState.value = ConversationState()
     }
 

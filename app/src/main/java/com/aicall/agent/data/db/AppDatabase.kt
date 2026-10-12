@@ -253,6 +253,46 @@ val MIGRATION_1_3 = object : Migration(1, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `knowledge_documents` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `source` TEXT NOT NULL,
+                `title` TEXT NOT NULL,
+                `content` TEXT NOT NULL,
+                `category` TEXT NOT NULL,
+                `targetPhoneNumber` TEXT,
+                `isConfidential` INTEGER NOT NULL,
+                `trustLevel` REAL NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                `expiresAt` INTEGER,
+                `isApproved` INTEGER NOT NULL,
+                `provenance` TEXT NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_knowledge_documents_isApproved` ON `knowledge_documents` (`isApproved`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_knowledge_documents_targetPhoneNumber` ON `knowledge_documents` (`targetPhoneNumber`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_knowledge_documents_expiresAt` ON `knowledge_documents` (`expiresAt`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_knowledge_documents_category` ON `knowledge_documents` (`category`)")
+    }
+}
+
+val MIGRATION_1_4 = object : Migration(1, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_1_3.migrate(db)
+        MIGRATION_3_4.migrate(db)
+    }
+}
+
+val MIGRATION_2_4 = object : Migration(2, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_2_3.migrate(db)
+        MIGRATION_3_4.migrate(db)
+    }
+}
+
 @Database(
     entities = [
         CallRecord::class,
@@ -260,9 +300,10 @@ val MIGRATION_1_3 = object : Migration(1, 3) {
         AgentRule::class,
         AgentSchedule::class,
         ActionItem::class,
-        AuditLog::class
+        AuditLog::class,
+        KnowledgeDocument::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -273,6 +314,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun agentScheduleDao(): AgentScheduleDao
     abstract fun actionItemDao(): ActionItemDao
     abstract fun auditLogDao(): AuditLogDao
+    abstract fun knowledgeDocumentDao(): KnowledgeDocumentDao
 
     companion object {
         @Volatile
@@ -285,7 +327,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "aicall_database.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_1_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_1_3, MIGRATION_3_4, MIGRATION_1_4, MIGRATION_2_4)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

@@ -45,4 +45,16 @@ class Converters {
 
     @TypeConverter
     fun toRuleActionType(value: String): RuleActionType = runCatching { RuleActionType.valueOf(value) }.getOrDefault(RuleActionType.ALWAYS_RING_USER)
+
+    @TypeConverter
+    fun fromKnowledgeSource(value: KnowledgeSource): String = value.name
+
+    @TypeConverter
+    fun toKnowledgeSource(value: String): KnowledgeSource = runCatching { KnowledgeSource.valueOf(value) }.getOrDefault(KnowledgeSource.USER_INSTRUCTION)
+
+    @TypeConverter
+    fun fromKnowledgeCategory(value: KnowledgeCategory): String = value.name
+
+    @TypeConverter
+    fun toKnowledgeCategory(value: String): KnowledgeCategory = runCatching { KnowledgeCategory.valueOf(value) }.getOrDefault(KnowledgeCategory.GENERAL)
 }

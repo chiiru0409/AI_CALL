@@ -1,0 +1,85 @@
+%% ==============================================================================
+%% Equal AI Call Architecture & Flow Diagram (Phase 5 Reverse Engineering)
+%% Verified clean-room architectural specification based on decompiled APK sources
+%% Distinguishes Signaling, Caller Speech Audio, Assistant Speech Audio, and Data/Transcripts
+%% Unverified backend cloud internals explicitly labeled as UNKNOWN
+%% ==============================================================================
+
+sequenceDiagram
+    autonumber
+
+    actor Caller as 👤 Remote Caller (Any Phone)
+    participant PSTN as 📡 Telecom Carrier Network<br/>(Airtel / Jio / Vi Cell Tower)
+    participant HandsetModem as 📱 User Handset Modem<br/>(Baseband Radio / SIM)
+    participant EqualAppScreening as ⚙️ Equal AI Android Service<br/>(ScreeningService / D8.X / D8.G / D8.L)
+    participant EqualBackend as ☁️ Equal AI Cloud API<br/>(user.ai-prod.equal.in)
+    participant ExotelTrunk as ☎️ Cloud Telephony Gateway<br/>(Exotel Exophone Trunk)
+    participant CloudAI as 🧠 Cloud AI Pipeline<br/>(ASR, LLM, TTS Engine - UNKNOWN)
+    participant LiveKitCloud as 🌐 LiveKit WebRTC Server<br/>(*.livekit.cloud)
+    participant EqualAppUI as 📲 Equal AI Handset UI<br/>(Overlay & Live Transcripts)
+
+    Note over PSTN,EqualAppScreening: Pre-requisite: Carrier Conditional Call Forwarding (*67* / *004*) provisioned during onboarding to Exophone DID
+
+    %% 1. INCOMING CALL & SCREENING
+    rect rgb(240, 245, 255)
+    Note over Caller,EqualAppScreening: Phase 1: Incoming Cellular Call Signaling & Rejection
+    Caller->>PSTN: [Signaling] Dials User Primary Mobile Number
+    PSTN->>HandsetModem: [Signaling] Cellular Paging / Setup (Incoming Call Arrival)
+    HandsetModem->>EqualAppScreening: [Signaling] Telecom Framework triggers onScreenCall(Call.Details)
+    Note over EqualAppScreening: ScreeningService / D8.X:<br/>1. Normalize number (PhoneNumberUtils)<br/>2. Deduplicate (<1000ms window)<br/>3. Check Contacts: if contact -> allow ring<br/>4. Check Dual-SIM slot<br/>5. Generate callIdempotencyId (UUID)
+    EqualAppScreening->>EqualBackend: [Data/REST] POST /api/v1/call/sessions (PublishCallRequest)
+    EqualBackend-->>EqualAppScreening: [Data/REST] CreateSessionResponse(action=REJECT, status=SUCCESS)
+    EqualAppScreening->>HandsetModem: [Signaling] respondToCall(disallowCall=true, rejectCall=true, silence=true)
+    HandsetModem->>PSTN: [Signaling] User-Busy / Decline Signal sent to Cell Tower
+    Note over EqualAppScreening,HandsetModem: Handset stops ringing immediately without user interaction.<br/>NO audio session is ever created on the Android OS handset.
+    end
+
+    %% 2. CARRIER CONDITIONAL FORWARDING
+    rect rgb(255, 248, 240)
+    Note over PSTN,ExotelTrunk: Phase 2: Carrier-Level Conditional Call Forwarding (CCF)
+    Note over PSTN: Carrier detects User Busy state.<br/>Triggering active CCF (*67* rule) mapped to Exophone virtual number.
+    PSTN->>ExotelTrunk: [Signaling] Forward call trunk to Exotel DID (PSTN/PRI/SIP Trunk)
+    ExotelTrunk->>PSTN: [Signaling] 200 OK / Answer Call in Cloud
+    ExotelTrunk->>CloudAI: [Signaling/SIP] Establish cloud voice bridge
+    end
+
+    %% 3. TWO-WAY CONVERSATION IN CLOUD
+    rect rgb(240, 255, 245)
+    Note over Caller,CloudAI: Phase 3: Live Bidirectional Cellular Audio (100% in Cloud)
+    Caller=>>PSTN: == Caller Speech Audio (Baseband/PSTN) ==
+    PSTN=>>ExotelTrunk: == Caller Speech Audio (PSTN/VoIP Trunk) ==
+    ExotelTrunk=>>CloudAI: == Caller Speech Audio (RTP / PCM Stream) ==
+
+    Note over CloudAI: Cloud AI Pipeline (UNKNOWN Internals):<br/>1. ASR: Speech-to-Text (e.g. Deepgram / Whisper - UNKNOWN)<br/>2. LLM: Prompt & Reasoning (e.g. GPT-4o / Claude / Llama - UNKNOWN)<br/>3. TTS: Text-to-Speech (e.g. ElevenLabs / Cartesia - UNKNOWN)
+
+    CloudAI-->>ExotelTrunk: -- Generated Assistant Audio (RTP Stream) --
+    ExotelTrunk-->>PSTN: -- Generated Assistant Audio (PSTN Trunk) --
+    PSTN-->>Caller: -- Generated Assistant Audio (Cellular Downlink) --
+    Note over Caller: Remote caller hears seamless AI voice conversation with zero handset dependency
+    end
+
+    %% 4. STATUS, TRANSCRIPTS & LIVEKIT MONITORING
+    rect rgb(255, 240, 255)
+    Note over CloudAI,EqualAppUI: Phase 4: App Notification, Transcripts & Optional LiveKit Listen-in
+    CloudAI->>EqualBackend: [Data] Stream live token transcripts & session updates
+    EqualBackend->>EqualAppUI: [Data/FCM Push] LiveCallStartPayload (FCM high-priority trigger)
+    EqualBackend->>EqualAppUI: [Data/WebSocket] wss://user.ai-prod.equal.in live TranscriptItem stream
+    Note over EqualAppUI: Equal AI displays floating overlay (SYSTEM_ALERT_WINDOW)<br/>Shows caller name, live transcript text, and action buttons
+
+    opt LiveKit Listen-In / Barge-In (WebRTC)
+        EqualAppUI->>EqualBackend: [Data/REST] Request LiveKit Room Token (RtcInfo)
+        EqualBackend-->>EqualAppUI: [Data/REST] Return token, room, url (*.livekit.cloud)
+        EqualAppUI->>LiveKitCloud: [WebRTC] Connect via liblkjingle_peerconnection_so.so
+        CloudAI->>LiveKitCloud: [WebRTC] Mirror synthesized assistant & caller audio track
+        LiveKitCloud-->>EqualAppUI: == Audio Track Playback (Handset Earpiece/Speaker) ==
+        Note over EqualAppUI: User can silently listen to the live call or tap 'Take Over' via WebRTC/PSTN
+    end
+
+    %% 5. CALL TERMINATION
+    Caller->>PSTN: [Signaling] Caller Hangs Up (Disconnect)
+    PSTN->>ExotelTrunk: [Signaling] ISUP/SIP BYE
+    ExotelTrunk->>CloudAI: [Signaling] End session
+    CloudAI->>EqualBackend: [Data] Finalize CallDetails, duration, PostCallSummaryPayload
+    EqualBackend->>EqualAppUI: [Data/FCM + WS] PostCallSummaryPayload & CallSummary notification
+    Note over EqualAppUI: Floating overlay dismisses; summary saved to local Room DB & user timeline
+    end
