@@ -1,0 +1,70 @@
+sequenceDiagram
+    autonumber
+
+    actor Caller as 👤 Remote Cellular Caller
+    participant Carrier as 📡 Mobile Carrier Network<br/>(Airtel / Jio / Vi VoLTE)
+    participant Modem as 📱 Handset Baseband Modem<br/>(iQOO Z9 MT6878 Modem)
+    participant AOSP as ⚙️ Android Telecom & Audio HAL<br/>(InCallService & AudioFlinger)
+    participant App as 📲 AI_CALL Android App<br/>(CallManager & UI)
+    participant BT_Bridge as 📻 External Bluetooth HFP Bridge<br/>(ESP32 / Linux Hands-Free Client)
+    participant PC_AI as 🖥️ Host PC Local AI Pipeline<br/>(Whisper + Ollama + SAPI5 TTS)
+    participant Cloud_DID as ⚠️ Commercial Cloud Telephony DID<br/>(Exotel / Twilio — PAID ONLY)
+
+    Note over Caller,PC_AI: AI_CALL Phase 9 — Verified Architecture & Telephony Audio Flow
+
+    %% -------------------------------------------------------------
+    %% 1. INCOMING CELLULAR CALL SIGNALING
+    %% -------------------------------------------------------------
+    rect rgb(240, 245, 255)
+    Note over Caller,App: 1. Cellular Call Signaling
+    Caller->>Carrier: Dials User Primary Mobile Number
+    Carrier->>Modem: Cellular Paging / VoLTE Setup
+    Modem->>AOSP: Telecom Framework triggers incoming call event
+    AOSP->>App: InCallService receives active incoming call
+    end
+
+    %% -------------------------------------------------------------
+    %% 2. UNAVAILABLE / BLOCKED ON-DEVICE AUDIO PATHS
+    %% -------------------------------------------------------------
+    rect rgb(255, 235, 235)
+    Note over App,AOSP: 2. Blocked On-Device Software Audio Paths
+    opt Attempted Software Audio Route (AI_CALL Current Failure)
+        App--xModem: [BLOCKED BY ANDROID OS] No public API exists to inject software TTS into Modem Uplink!
+        AOSP--xApp: [BLOCKED BY OS SECURITY] VOICE_DOWNLINK requires signature-level CAPTURE_AUDIO_OUTPUT!
+        Note over App,Modem: Result: TTS plays into room speaker; remote caller hears dead silence.
+    end
+    opt Attempted Direct Carrier SIP Forwarding
+        Carrier--xPC_AI: [UNSUPPORTED BY CARRIERS] Mobile carriers strictly reject forwarding to SIP URIs or private IPs!
+    end
+    end
+
+    %% -------------------------------------------------------------
+    %% 3. RECOMMENDED PATH: BLUETOOTH HFP AUDIO LOOPBACK (PATH A)
+    %% -------------------------------------------------------------
+    rect rgb(240, 255, 245)
+    Note over Modem,PC_AI: 3. Recommended Architecture: Bluetooth HFP Client Bridge (100% Offline & Free)
+    App->>AOSP: Answers call & sets audio route to Bluetooth SCO (ROUTE_BLUETOOTH)
+    Modem->>BT_Bridge: Streams digital caller audio over Bluetooth SCO downlink
+    BT_Bridge->>PC_AI: Forwards raw PCM audio chunks over USB / Wi-Fi (<15ms)
+    
+    Note over PC_AI: Local PC AI Engine (Zero Cost, 100% English):<br/>1. English ASR: Transcribes caller speech (~300ms)<br/>2. Guardrail: Regex/Unicode Telugu rejection (<1ms)<br/>3. Reasoning: Ollama qwen2.5:3b response (~1.5s)<br/>4. English TTS: SAPI5 David speech synthesis (~130ms)
+
+    PC_AI->>BT_Bridge: Returns synthesized English PCM speech buffer
+    BT_Bridge->>Modem: Injects PCM audio into Bluetooth SCO microphone uplink
+    Modem->>Carrier: Baseband modem transmits Bluetooth mic stream over VoLTE
+    Carrier->>Caller: Caller hears natural English AI assistant voice
+    end
+
+    %% -------------------------------------------------------------
+    %% 4. ALTERNATE PATH: COMMERCIAL CARRIER CCF TO CLOUD DID (PATH B)
+    %% -------------------------------------------------------------
+    rect rgb(255, 250, 235)
+    Note over Carrier,Cloud_DID: 4. Alternate Path: Commercial Cloud Forwarding (Paid Telephony / Equal AI Model)
+    opt When Using Commercial Cloud Telephony DID ($10-$25/month)
+        App->>AOSP: CallScreeningService rejects call (disallow=true, reject=true)
+        AOSP->>Carrier: Sends User-Busy signal to cell tower
+        Carrier->>Cloud_DID: Executes *67* Forwarding Rule to virtual E.164 DID
+        Cloud_DID->>PC_AI: Bridges SIP/RTP audio stream over public Internet
+        Note over Cloud_DID,PC_AI: Proven by Equal AI, but requires paid cloud subscription & continuous Internet.
+    end
+    end
