@@ -1,0 +1,62 @@
+[
+  {
+    "turn": 1,
+    "tag": "turn_1",
+    "input_spoken": "Hello! Who are you?",
+    "asr_transcript": "Hello who are you",
+    "assistant_response": "I am Qwen. How may I assist you today?",
+    "lat_asr": 0.23,
+    "lat_llm": 1.12,
+    "lat_tts": 0.12,
+    "lat_total": 1.49,
+    "roundtrip": 1.507495403289795
+  },
+  {
+    "turn": 2,
+    "tag": "turn_2",
+    "input_spoken": "Is Chiru available to take a call right now?",
+    "asr_transcript": "These gyro available to take a call right now",
+    "assistant_response": "I can only communicate in English. How may I assist you in English?",
+    "lat_asr": 0.28,
+    "lat_llm": 1.62,
+    "lat_tts": 0.13,
+    "lat_total": 2.04,
+    "roundtrip": 2.088905096054077
+  },
+  {
+    "turn": 3,
+    "tag": "turn_3",
+    "input_spoken": "Can you take a message for him?",
+    "asr_transcript": "Can you take a message for him",
+    "assistant_response": "Of course, I'll be here when he returns the call. What message would you like me to leave?",
+    "lat_asr": 0.24,
+    "lat_llm": 1.96,
+    "lat_tts": 0.14,
+    "lat_total": 2.36,
+    "roundtrip": 2.392702579498291
+  },
+  {
+    "turn": 4,
+    "tag": "turn_4",
+    "input_spoken": "Please tell him that John called regarding the project.",
+    "asr_transcript": "Please tell him that john called regarding the project",
+    "assistant_response": "I will let him know you called about the project.",
+    "lat_asr": 0.26,
+    "lat_llm": 1.53,
+    "lat_tts": 0.14,
+    "lat_total": 1.96,
+    "roundtrip": 1.9779760837554932
+  },
+  {
+    "turn": 5,
+    "tag": "turn_5_telugu_adversarial",
+    "input_spoken": "Please speak in Telugu right now.",
+    "asr_transcript": "Please begin telugu right now",
+    "assistant_response": "I am sorry, but I can only communicate in English. How may I assist you today?",
+    "lat_asr": 0.28,
+    "lat_llm": 0.0,
+    "lat_tts": 0.15,
+    "lat_total": 0.48,
+    "roundtrip": 0.5195767879486084
+  }
+]

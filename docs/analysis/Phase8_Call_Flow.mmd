@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    actor Caller as 👤 Caller (Speaking into iQOO Z9 Mic)
+    participant PhoneChrome as 📱 Chrome Browser on iQOO Z9<br/>(http://localhost:8000)
+    participant ReverseTunnel as 🔌 ADB Reverse / Local LAN<br/>(tcp:8000 loopback tunnel)
+    participant ServerBridge as 🖥️ FastAPI WebSocket Bridge<br/>(server.py on Host PC)
+    participant SapiASR as 🎙️ Windows SAPI ASR Engine<br/>(Microsoft Speech Recognizer 8.0 en-US)
+    participant PreGuard as 🛡️ Pre-LLM Guardrail<br/>(Telugu & Script Filter)
+    participant OllamaLLM as 🧠 Ollama qwen2.5:3b LLM<br/>(Local CPU Inference)
+    participant PostGuard as 🛡️ Post-LLM Guardrail<br/>(ASCII / English Validator)
+    participant SapiTTS as 🔊 Windows SAPI5 TTS Engine<br/>(Microsoft David Desktop 22kHz)
+    actor CallerEars as 👂 Caller (Listening to Handset Speaker)
+
+    Note over Caller,CallerEars: VALIDATED AUDIO PATH — 100% ENGLISH ONLY — ZERO EXTERNAL APIS
+
+    %% -------------------------------------------------------------
+    %% UPLINK AUDIO
+    %% -------------------------------------------------------------
+    Caller->>PhoneChrome: 1. Speaks English into handset mic (Hold button)
+    Note over PhoneChrome: AudioContext records 16kHz PCM<br/>Encodes clean 16-bit Mono WAV in JS
+    PhoneChrome->>ReverseTunnel: 2. Transmits audio_payload over WebSocket (Base64 WAV)
+    ReverseTunnel->>ServerBridge: 3. Delivers payload to server (<5ms delay)
+    ServerBridge->>SapiASR: 4. Feeds WAV to SpInprocRecognizer (en-US)
+    Note over SapiASR: Transcribes in ~250ms<br/>Rejects non-speech tones as empty
+    SapiASR->>ServerBridge: 5. Emits English transcript
+    ServerBridge->>PhoneChrome: 6. Push real-time transcript to display
+
+    %% -------------------------------------------------------------
+    %% INPUT VALIDATION & LLM REASONING
+    %% -------------------------------------------------------------
+    ServerBridge->>PreGuard: 7. Evaluates input against Telugu Unicode block & keywords
+    alt Non-English / Telugu detected
+        PreGuard-->>SapiTTS: Short-circuit: "I can only communicate in English..."
+    else English verified
+        PreGuard->>OllamaLLM: 8. Passes prompt + conversation history to Ollama
+        Note over OllamaLLM: qwen2.5:3b generates 1-2 sentence response<br/>(Warm latency: ~1.5s on CPU)
+        OllamaLLM->>PostGuard: 9. Returns candidate text
+        Note over PostGuard: Validates English characters & strips markdown
+        PostGuard->>SapiTTS: 10. Forwards sanitized English response
+    end
+
+    %% -------------------------------------------------------------
+    %% DOWNLINK AUDIO & PLAYBACK
+    %% -------------------------------------------------------------
+    Note over SapiTTS: Synthesizes speech via Microsoft David<br/>(Warm latency: ~130ms; RTF ~0.03x)
+    SapiTTS->>ServerBridge: 11. Returns 22kHz 16-bit WAV audio buffer
+    ServerBridge->>ReverseTunnel: 12. Sends assistant_response JSON with Base64 audio + latency metrics
+    ReverseTunnel->>PhoneChrome: 13. Receives downlink audio packet
+    PhoneChrome->>CallerEars: 14. Plays speech instantly through phone speaker
+    Note over Caller,CallerEars: Total Roundtrip Latency: ~1.5s - 2.0s (Natural Spoken Dialogue)
