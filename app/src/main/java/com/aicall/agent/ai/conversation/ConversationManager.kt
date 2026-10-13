@@ -144,10 +144,16 @@ class ConversationManager(
     ) {
         if (!_conversationState.value.isActive) return
 
+        val cleanedText = callerText.trim()
+        // Discard non-substantive noise tokens, pure punctuation, or single-character hallucinations
+        if (cleanedText.length < 3 || cleanedText.all { !it.isLetterOrDigit() }) {
+            return
+        }
+
         // 1. Validate caller utterance against deterministic security policy with cross-turn context
-        when (val policyCheck = policyEnforcer.validateCallerUtterance(callerText, _conversationState.value.turns)) {
+        when (val policyCheck = policyEnforcer.validateCallerUtterance(cleanedText, _conversationState.value.turns)) {
             is PolicyValidationResult.Blocked -> {
-                recordTurn("Caller", callerText)
+                recordTurn("Caller", cleanedText)
                 val blockMessage = "I cannot process this request due to security policies."
                 recordTurn("AI", blockMessage)
                 speechSynthesizer.speak(blockMessage) {
@@ -165,7 +171,7 @@ class ConversationManager(
         }
 
         voiceStateMachine.onSpeechEndDetected(floatArrayOf())
-        recordTurn("Caller", callerText)
+        recordTurn("Caller", cleanedText)
 
         // 2. Generate agent turn
         coroutineScope.launch {
@@ -250,8 +256,10 @@ class ConversationManager(
             audioStorageManager?.deleteSessionAudio(state.sessionId)
         }
 
-        // Strict criterion: AI_HANDLED requires documented handling criteria (actual conversation turns with caller)
-        val hasCallerDialogue = state.turns.any { it.first == "Caller" }
+        // Strict criterion: AI_HANDLED requires documented handling criteria (actual substantive conversation turns with caller)
+        val hasCallerDialogue = state.turns.any { (speaker, text) ->
+            speaker == "Caller" && text.trim().length >= 3 && text.any { it.isLetter() }
+        }
         val effectiveOutcome = if (!hasCallerDialogue && outcome == HandlingStatus.AI_HANDLED) {
             HandlingStatus.MISSED
         } else {

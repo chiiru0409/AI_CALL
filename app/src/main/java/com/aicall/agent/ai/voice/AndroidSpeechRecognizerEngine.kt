@@ -187,6 +187,7 @@ class AndroidSpeechRecognizerEngine(
 
     override fun stopListening() {
         isListeningState = false
+        mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post {
             try {
                 speechRecognizer?.stopListening()
@@ -203,6 +204,7 @@ class AndroidSpeechRecognizerEngine(
 
     fun release() {
         isListeningState = false
+        mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post {
             try {
                 speechRecognizer?.destroy()

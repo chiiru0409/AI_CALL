@@ -77,8 +77,8 @@ fun DiagnosticsScreen() {
             TelephonyFeasibilityItem(
                 title = "Two-Way Cellular Audio Injection (Full Duplex)",
                 description = "Baseband audio injection vs degraded loudspeaker loopback.",
-                status = FeasibilityStatus.PARTIALLY_SUPPORTED,
-                technicalDetails = "Direct cellular downlink/uplink injection restricted on commercial Android 13; degraded loopback requires speakerphone/mic."
+                status = FeasibilityStatus.UNSUPPORTED_ON_DEVICE,
+                technicalDetails = "Direct cellular downlink/uplink injection restricted on stock Android (CAPTURE_AUDIO_OUTPUT restricted). Loudspeaker acoustic loopback is eliminated by MediaTek hardware AEC. Two-way audible communication requires an external Bluetooth HFP bridge or carrier forwarding."
             ),
             TelephonyFeasibilityItem(
                 title = "On-Device Data Flow & Zero-Cloud Privacy",

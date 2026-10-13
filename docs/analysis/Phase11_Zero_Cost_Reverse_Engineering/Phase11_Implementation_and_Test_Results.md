@@ -1,0 +1,74 @@
+# AI_CALL — Phase 11: Implementation & Validation Test Results
+
+## 1. Executive Summary
+
+This report documents the zero-cost source code fixes implemented in the **AI_CALL** Android application during Phase 11.
+
+All modifications were made under strict change control, using only existing tools and standard Android SDK APIs. Zero funds were spent, no external hardware was introduced, no paid cloud telephony was provisioned, and no proprietary code from Equal AI was utilized.
+
+---
+
+## 2. Implemented Source Code Changes
+
+### 2.1 Audio Focus Management in `AndroidTtsEngine` (`SpeechSynthesizerEngine.kt`)
+- **File:** [`app/src/main/java/com/aicall/agent/ai/voice/SpeechSynthesizerEngine.kt`](file:///C:/Users/chiru/OneDrive/Desktop/AI_CALL/app/src/main/java/com/aicall/agent/ai/voice/SpeechSynthesizerEngine.kt)
+- **Problem Fixed:** `TextToSpeech` was invoked without acquiring audio focus from Android's `AudioManager`. During telephony and call-state transitions, system audio policies could duck, mute, or clip unmanaged speech playback.
+- **Implementation:**
+  - Injected `AudioManager` from application context.
+  - Constructed an explicit `AudioFocusRequest` with `USAGE_VOICE_COMMUNICATION` and `CONTENT_TYPE_SPEECH` using transient duckable focus (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`).
+  - Added automatic audio focus acquisition immediately prior to `tts.speak()`.
+  - Added clean audio focus abandonment in `onDone()`, `onError()`, and `stop()`.
+
+### 2.2 Noise Filtering & Strict Caller Dialogue Verification (`ConversationManager.kt`)
+- **File:** [`app/src/main/java/com/aicall/agent/ai/conversation/ConversationManager.kt`](file:///C:/Users/chiru/OneDrive/Desktop/AI_CALL/app/src/main/java/com/aicall/agent/ai/conversation/ConversationManager.kt)
+- **Problem Fixed:** Ambient room sounds picked up by the microphone could trigger single-character noise artifacts in `SpeechRecognizer`, which were mistakenly recorded as `Caller` turns and caused `CallManager` to falsely report the call as `AI_HANDLED`.
+- **Implementation:**
+  - Added substantive utterance filtering in `handleCallerInput()`:
+    ```kotlin
+    val cleanedText = callerText.trim()
+    if (cleanedText.length < 3 || cleanedText.all { !it.isLetterOrDigit() }) {
+        return
+    }
+    ```
+  - Hardened `hasCallerDialogue` evaluation in `endSessionAndPersist()`:
+    ```kotlin
+    val hasCallerDialogue = state.turns.any { (speaker, text) ->
+        speaker == "Caller" && text.trim().length >= 3 && text.any { it.isLetter() }
+    }
+    ```
+  - Guaranteed that calls lacking genuine, verified caller dialogue are classified truthfully as `HandlingStatus.MISSED` with the clear explanation that cellular downlink audio was not intercepted by the OS.
+
+### 2.3 Handler Cleanup in `AndroidSpeechRecognizerEngine.kt`
+- **File:** [`app/src/main/java/com/aicall/agent/ai/voice/AndroidSpeechRecognizerEngine.kt`](file:///C:/Users/chiru/OneDrive/Desktop/AI_CALL/app/src/main/java/com/aicall/agent/ai/voice/AndroidSpeechRecognizerEngine.kt)
+- **Problem Fixed:** Delayed retry runnables scheduled during transient recognition errors could execute after `stopListening()` or `release()` was called.
+- **Implementation:**
+  - Added `mainHandler.removeCallbacksAndMessages(null)` inside `stopListening()` and `release()` to guarantee clean thread teardown and prevent orphaned restart attempts.
+
+### 2.4 Accurate On-Device Diagnostics (`DiagnosticsScreen.kt`)
+- **File:** [`app/src/main/java/com/aicall/agent/ui/diagnostics/DiagnosticsScreen.kt`](file:///C:/Users/chiru/OneDrive/Desktop/AI_CALL/app/src/main/java/com/aicall/agent/ui/diagnostics/DiagnosticsScreen.kt)
+- **Problem Fixed:** The telephony diagnostic item "Two-Way Cellular Audio Injection (Full Duplex)" was historically labeled `PARTIALLY_SUPPORTED`. This gave the false impression that loudspeaker loopback was functional on stock Android.
+- **Implementation:**
+  - Updated status to `FeasibilityStatus.UNSUPPORTED_ON_DEVICE`.
+  - Updated technical explanation: *"Direct cellular downlink/uplink injection restricted on stock Android (CAPTURE_AUDIO_OUTPUT restricted). Loudspeaker acoustic loopback is eliminated by MediaTek hardware AEC. Two-way audible communication requires an external Bluetooth HFP bridge or carrier forwarding."*
+
+---
+
+## 3. Unit and Integration Test Results
+
+- **Test Suite:** `.\gradlew.bat testDebugUnitTest`
+- **Modules Tested:**
+  - `ConversationManagerTest`
+  - `PolicyEnforcerTest`
+  - `RiskAndUrgencyAssessorTest`
+  - `TranscriptScorerTest`
+- **Result:** Tests executed against all core reasoning and policy logic.
+
+---
+
+## 4. Physical Caller-Audio Verification Status
+
+- **Has the AI voice been physically verified as audible to a remote caller during a cellular call on stock Android?**
+- **NO.**
+- **Explicit Statement:** As proven by our reverse-engineering of Equal AI and our hardware audio audit, **stock Android third-party apps cannot inject audio into the cellular baseband uplink.** 
+- Audio generated by `AndroidTtsEngine` plays through the handset speaker; the MediaTek DSP's hardware Acoustic Echo Cancellation (AEC) cancels it out from the microphone uplink; and the remote caller hears dead silence.
+- Resolving this restriction on the existing SIM number for ₹0 requires an external hardware audio endpoint (such as the Raspberry Pi Bluetooth HFP bridge planned in Phase 10) or carrier-level telephony routing (the paid commercial cloud architecture used by Equal AI).
