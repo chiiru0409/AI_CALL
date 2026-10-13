@@ -1,0 +1,71 @@
+sequenceDiagram
+    autonumber
+
+    actor Caller as 👤 Remote Caller (Cellular Line)
+    participant Carrier as 📡 Mobile Carrier Network<br/>(Jio / Airtel VoLTE)
+    participant Modem as 📱 Handset Baseband Modem<br/>(iQOO Z9 MT6878 Baseband)
+    participant Telecom as ⚙️ Android Telecom / Audio HAL<br/>(InCallService & AudioFlinger)
+    participant App as 📲 AI_CALL Android App<br/>(CallManager & UI)
+    participant HFP_Bridge as 📻 External Linux HFP Bridge<br/>(Raspberry Pi Zero 2 W / BlueZ)
+    participant PC_Pipeline as 🖥️ Host PC Local AI Pipeline<br/>(ASR + Ollama + SAPI5 TTS)
+    participant Cloud_DID as ⚠️ Commercial Cloud Telephony DID<br/>(Exotel / Twilio — PAID ONLY)
+
+    Note over Caller,PC_Pipeline: AI_CALL Phase 9.1 — Verified Cellular Audio Architecture & Audio Flow
+
+    %% -------------------------------------------------------------
+    %% 1. CELLULAR CALL SIGNALING
+    %% -------------------------------------------------------------
+    rect rgb(240, 245, 255)
+    Note over Caller,App: 1. Cellular Call Arrival & Routing
+    Caller->>Carrier: Dials User Primary Mobile Number
+    Carrier->>Modem: Cellular Paging / VoLTE Setup
+    Modem->>Telecom: Telecom Framework notifies incoming call
+    Telecom->>App: InCallService receives active incoming call
+    App->>Telecom: Answers call & sets route to Bluetooth (ROUTE_BLUETOOTH)
+    Telecom->>Modem: Routes voice audio paths to Bluetooth SCO hardware interface
+    end
+
+    %% -------------------------------------------------------------
+    %% 2. BLOCKED ON-DEVICE PATHS (WHY STOCK ANDROID FAILS)
+    %% -------------------------------------------------------------
+    rect rgb(255, 235, 235)
+    Note over App,Modem: 2. Blocked On-Device Software Paths
+    opt Direct App Audio Route (AI_CALL Current Failure)
+        App--xModem: [BLOCKED BY ANDROID OS] No public API to inject AudioTrack into modem uplink!
+        Telecom--xApp: [BLOCKED BY OS SECURITY] VOICE_DOWNLINK requires signature-level CAPTURE_AUDIO_OUTPUT!
+        Note over App,Modem: Result: TTS plays out room speaker; caller hears dead silence.
+    end
+    opt Direct Carrier Forwarding to PC
+        Carrier--xPC_Pipeline: [UNSUPPORTED BY CARRIERS] Mobile carriers strictly reject forwarding to SIP URIs or private IPs!
+    end
+    end
+
+    %% -------------------------------------------------------------
+    %% 3. RECOMMENDED PATH: BLUETOOTH HFP AUDIO LOOPBACK (PATH A)
+    %% -------------------------------------------------------------
+    rect rgb(240, 255, 245)
+    Note over Modem,PC_Pipeline: 3. Recommended Architecture: External Linux HFP Bridge (100% Offline & Free)
+    Modem->>HFP_Bridge: Streams digital caller audio over Bluetooth eSCO downlink (16kHz mSBC)
+    HFP_Bridge->>PC_Pipeline: Forwards raw PCM chunks over USB / Wi-Fi (<10ms)
+    
+    Note over PC_Pipeline: Local PC AI Pipeline (100% English Only):<br/>1. English ASR: Transcribes speech (SAPI 8.0 / Whisper.en)<br/>2. Guardrail: Deterministic Telugu keyword check (<1ms)<br/>3. Reasoning: Ollama qwen2.5:3b CPU inference (~1.5s)<br/>4. English TTS: SAPI5 David speech synthesis (~130ms)
+
+    PC_Pipeline->>HFP_Bridge: Returns synthesized English PCM speech buffer
+    HFP_Bridge->>Modem: Injects PCM audio into Bluetooth eSCO microphone uplink
+    Modem->>Carrier: Baseband modem transmits Bluetooth mic stream over VoLTE
+    Carrier->>Caller: Remote caller hears natural English AI assistant voice
+    end
+
+    %% -------------------------------------------------------------
+    %% 4. ALTERNATE PATH: COMMERCIAL CLOUD TELEPHONY (PATH B)
+    %% -------------------------------------------------------------
+    rect rgb(255, 250, 235)
+    Note over Carrier,Cloud_DID: 4. Alternate Path: Commercial Cloud Forwarding (Paid Telephony / Equal AI Model)
+    opt When Using Commercial Cloud Telephony DID ($10-$25/month)
+        App->>Telecom: CallScreeningService rejects call (disallow=true, reject=true)
+        Telecom->>Carrier: Sends User-Busy signal to cell tower
+        Carrier->>Cloud_DID: Executes *67* Forwarding Rule to virtual E.164 DID
+        Cloud_DID->>PC_Pipeline: Bridges SIP/RTP audio stream over public Internet
+        Note over Cloud_DID,PC_Pipeline: Proven by Equal AI, but requires ongoing subscription & cloud dependency.
+    end
+    end
