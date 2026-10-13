@@ -1,0 +1,78 @@
+sequenceDiagram
+    autonumber
+
+    actor Caller as 👤 Remote Caller (Cellular Line)
+    participant Carrier as 📡 Mobile Carrier (Jio / Airtel VoLTE)
+    participant Modem as 📱 iQOO Z9 Baseband Modem<br/>(MediaTek Dimensity 7200)
+    participant DSP as 🎛️ MediaTek Audio DSP<br/>(Audio HAL & Routing)
+    participant Telecom as ⚙️ Android Telecom / App<br/>(InCallService & CallManager)
+    participant Pi_Bridge as 📻 Raspberry Pi Zero 2 W<br/>(BlueZ 5.66+ & PipeWire 0.3+)
+    participant Host_PC as 🖥️ Host Windows 11 PC<br/>(Offline English AI Engine)
+
+    Note over Caller,Host_PC: AI_CALL Phase 10 — Controlled Cellular Audio Bridge Architecture
+
+    %% -------------------------------------------------------------
+    %% 1. CALL SIGNALING & BLUETOOTH SCO ROUTE SETUP
+    %% -------------------------------------------------------------
+    rect rgb(240, 245, 255)
+    Note over Caller,Telecom: 1. Cellular Call Signaling & Hardware Audio Redirection
+    Caller->>Carrier: Dials User Primary Mobile Number
+    Carrier->>Modem: Cellular VoLTE RF paging / call setup
+    Modem->>Telecom: Telecom Framework alerts incoming call
+    Telecom->>Telecom: App answers call on device (call.answer(0))
+    Telecom->>DSP: Sets call audio route: ROUTE_BLUETOOTH
+    DSP->>DSP: Internal loudspeaker & microphone uncoupled (AEC inactive)
+    DSP->>Pi_Bridge: Establishes bidirectional Bluetooth eSCO link (16kHz mSBC / 8kHz CVSD)
+    end
+
+    %% -------------------------------------------------------------
+    %% 2. DOWNLINK PATH: CALLER TO AI ENGINE
+    %% -------------------------------------------------------------
+    rect rgb(240, 255, 245)
+    Note over Caller,Host_PC: 2. Downlink Path: Remote Caller Speech to Host PC
+    Caller->>Carrier: Speaks English utterance into handset microphone
+    Carrier->>Modem: Transmits AMR-WB / EVS voice frames over VoLTE
+    Modem->>DSP: Baseband decodes voice to 16kHz linear PCM
+    DSP->>Pi_Bridge: Streams digital audio packets over Bluetooth eSCO Downlink
+    Pi_Bridge->>Pi_Bridge: BlueZ 5.66+ receives SCO packets via HCI socket
+    Pi_Bridge->>Pi_Bridge: PipeWire ALSA capture node (bluez_input.*) outputs raw 16kHz PCM
+    Pi_Bridge->>Host_PC: Streams PCM over USB OTG Cable (CDC-NCM Ethernet Gadget, <1ms)
+    end
+
+    %% -------------------------------------------------------------
+    %% 3. LOCAL AI VOICE PROCESSING (100% OFFLINE & ENGLISH-ONLY)
+    %% -------------------------------------------------------------
+    rect rgb(245, 245, 255)
+    Note over Host_PC: 3. Host PC Voice Engine Execution (Zero Cloud Dependency):<br/>• English ASR (SAPI 8.0 / faster-whisper base.en): ~350ms<br/>• Deterministic Language Guardrail (Strict English): <1ms<br/>• Local Reasoning (Ollama qwen2.5:3b CPU): ~1,200ms<br/>• English Speech Synthesis (Windows SAPI5 David WAV): ~130ms
+    end
+
+    %% -------------------------------------------------------------
+    %% 4. UPLINK PATH: AI SPEECH INJECTED INTO CALL
+    %% -------------------------------------------------------------
+    rect rgb(255, 245, 240)
+    Note over Host_PC,Caller: 4. Uplink Path: AI Speech Injected into Cellular Uplink
+    Host_PC->>Pi_Bridge: Returns synthesized 16kHz PCM speech buffer via USB (<1ms)
+    Pi_Bridge->>Pi_Bridge: Injects PCM into PipeWire ALSA playback node (bluez_output.*)
+    Pi_Bridge->>Pi_Bridge: PipeWire mSBC encoder compresses into 60-byte SCO frames
+    Pi_Bridge->>DSP: Transmits mSBC packets over Bluetooth eSCO Microphone Uplink
+    DSP->>Modem: Routes Bluetooth mic stream directly to Baseband Transmit Buffer (TX)
+    Modem->>Carrier: Modulates AMR-WB speech over VoLTE RF cellular uplink
+    Carrier->>Caller: Delivers audio to remote caller phone
+    Caller->>Caller: 🔊 Remote Caller clearly hears English AI agent voice!
+    end
+
+    %% -------------------------------------------------------------
+    %% 5. SAFETY GUARDRAILS & HUMAN TAKEOVER
+    %% -------------------------------------------------------------
+    rect rgb(255, 250, 235)
+    Note over Caller,Telecom: 5. Deterministic Human Takeover & Disconnect Safety
+    opt User Taps "Take Over" on Smartphone Screen
+        Telecom->>DSP: Audio route instantly switched from ROUTE_BLUETOOTH to ROUTE_EARPIECE
+        DSP->>Pi_Bridge: Tears down eSCO audio channel
+        Caller->>Modem: Caller voice immediately heard in user ear; user speaks normally.
+    end
+    opt Bluetooth Disconnects or USB Cable Unplugged
+        DSP->>DSP: Hardware SCO timeout detected (<50ms)
+        DSP->>Telecom: Auto-reverts route to internal earpiece; call remains connected.
+    end
+    end
